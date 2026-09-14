@@ -12,8 +12,19 @@ hardware can carry.
 
 ## What it is
 
-A launcher with eight apps, a clock, a GPS speed readout and a now-playing card. That is the
-whole product. No widgets, no wallpaper engine, no animations, no analytics, no accounts.
+A launcher with eight apps, a clock, a GPS speed readout, a now-playing card and trip stats.
+No widgets, no wallpaper engine, no animations, no analytics, no accounts.
+
+| | |
+|---|---|
+| **Dock** | Eight slots, every one configurable to any installed app, with custom labels. A slot whose package is missing dims instead of crashing. |
+| **App drawer** | Pages sideways, ten large icons per page. Icons are decoded per page and dropped elsewhere. |
+| **Drive mode** | Above 30 km/h the screen simplifies to four large targets with speed dominant. Returns below 18. Two thresholds so traffic does not flicker it. |
+| **Now playing** | Live from `MediaSessionManager`, including sources that publish no metadata at all, like FM radio. Play, pause, skip. |
+| **Trip stats** | Distance, average over moving time, top speed, duration. A trip is a journey: it survives stops and ends after 3 hours parked. |
+| **Dimming** | Dims at night by the clock, and after a few minutes of no touch. One overlay at the deeper of the two. |
+| **Screen off** | Long press the clock. Tap to wake. |
+| **Settings** | Dock editor, wallpaper picker, drive thresholds, dimming, clock format, km/h or mph. |
 
 **Zero third-party dependencies.** No AppCompat, no Material Components, no Jetpack Compose,
 no image loader. Everything is framework API on `android.app.Activity`. On a device with
@@ -216,6 +227,24 @@ system font scale.
 5 seconds the readout drops to a dash, because a frozen speed reads as real while being wrong.
 Anything under 3 km/h is treated as zero, since GPS jitters at a standstill.
 
+**A trip is a journey, not an ignition cycle.** Bhubaneswar to Bargarh is a day's drive with
+stops for tea, lunch and fuel, and the unit powers down at every one of them. Ending the trip
+on each stop would report the last leg instead of the drive. So a trip survives stops and ends
+only after 3 hours parked: longer than any meal, shorter than a night. Nothing needs to be
+running for it to end; it ends by not being resumed.
+
+**Average speed is over moving time, not elapsed.** That 331 km drive takes 10 hours with 3
+hours of stops. Against elapsed it averages 33 km/h, which is the speed you drove including
+lunch. Against moving time it reads about 47, which is the speed you drove.
+
+**Night dimming is a clock comparison, not a sun calculation.** An earlier version computed
+sunrise and sunset from the GPS fix. It was deleted: it added a file, needed a location before
+it could decide anything, and gave a worse answer than "is it evening yet".
+
+**Idle dimming needs no "do not dim during navigation" rule.** A map or a video is a different
+app in the foreground, so the home activity is stopped and the timer is not running. The case
+handles itself.
+
 **The clock follows the unit's own 12 vs 24 hour setting** rather than hardcoding either.
 
 **Missing packages dim, they never crash.** Every dock slot is resolved at runtime.
@@ -303,15 +332,16 @@ loads around it: **APK size is not RAM.**
 
 ## Roadmap
 
-- **In-app settings** to choose the layout and pick which app sits in each dock slot.
-  `HomeActivity.layoutRes()` already exists as the single call site, and `DOCK` is already data
-  rather than XML, so this is a settings screen plus layout files, not a rewrite.
-- **Icon pack support** (Nova / ADW format): enumerate installed packs via their theme intent,
-  parse `appfilter.xml`, substitute icons, fall back to the app's own.
-- **Automatic night dimming.** The imotor framework exposes `vehicle_signal_ill_detect`, which
-  is the head unit reading the headlight switch. It already drives the unit's own auto-dim, so
-  it is usually wired. Read it and darken the scrim; fall back to sunrise and sunset computed
-  from the GPS fix.
+Done: settings, lazy drawer icons, release signing, drive mode, dimming, screen off, trip
+stats, CI releases.
+
+Still open:
+
+- **Vendor profiles.** Detect the firmware family on first run and populate the dock, so a unit
+  that is not imotor does not start with four dead tiles.
+- **Icon pack support** (Nova / ADW format).
+- The vendor's floating assist button overlaps the speed digit in the top right. That is the
+  unit's own overlay, not this app's, and can usually be dragged elsewhere.
 
 ---
 
