@@ -387,6 +387,35 @@ class SettingsActivity : Activity() {
         content.addView(spacer())
         content.addView(header("Idle dimming"))
         content.addView(idleGroup)
+
+        // Without this, "Hide the trip card" from the long press menu would be a one way
+        // door: no way back short of clearing app data.
+        val tripGroup = newGroup()
+        val tripOn = Trip.cardEnabled(this)
+        val tripRow = newRow(tripGroup)
+        tripRow.findViewById<TextView>(R.id.row_title).text = "Trip card"
+        tripRow.findViewById<TextView>(R.id.row_sub).text =
+            "Distance, average, top speed and moving time. Shown when nothing is playing."
+        tripRow.findViewById<TextView>(R.id.row_value).apply {
+            text = if (tripOn) "On" else "Off"
+            setTextColor(getColor(R.color.accent))
+        }
+        tripRow.setOnClickListener { Trip.setCardEnabled(this, !tripOn); render() }
+        tripGroup.addView(tripRow)
+
+        val totalRow = newRow(tripGroup)
+        totalRow.findViewById<TextView>(R.id.row_title).text = "Total distance"
+        totalRow.findViewById<TextView>(R.id.row_sub).text = "Since Dash was installed"
+        totalRow.findViewById<TextView>(R.id.row_value).text =
+            if (Prefs.units(this) == Prefs.UNITS_MPH)
+                "${(Trip.totalKm() * 0.621371).toInt()} mi"
+            else "${Trip.totalKm().toInt()} km"
+        totalRow.isClickable = false
+        tripGroup.addView(totalRow)
+
+        content.addView(spacer())
+        content.addView(header("Trip"))
+        content.addView(tripGroup)
     }
 
     private fun renderAbout() {

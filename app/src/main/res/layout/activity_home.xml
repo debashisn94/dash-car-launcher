@@ -147,6 +147,104 @@
                         android:fontFamily="sans-serif-medium" />
                 </LinearLayout>
 
+                <!--
+                  Trip stats. Replaces the media card when nothing is playing rather than
+                  adding a fourth thing to the screen.
+                -->
+                <LinearLayout
+                    android:id="@+id/trip_card"
+                    android:layout_width="452dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/material_card"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="20dp"
+                    android:paddingBottom="20dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:id="@+id/trip_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/this_trip"
+                        android:textColor="@color/muted"
+                        android:textSize="13dp"
+                        android:letterSpacing="0.09"
+                        android:fontFamily="sans-serif-medium" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/trip_distance"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textColor="@color/ink" android:textSize="34dp"
+                                android:fontFamily="sans-serif-medium" android:includeFontPadding="false" />
+                            <TextView android:id="@+id/trip_distance_unit"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp" android:text="@string/km"
+                                android:textColor="@color/muted" android:textSize="13dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/trip_avg"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textColor="@color/ink" android:textSize="34dp"
+                                android:fontFamily="sans-serif-medium" android:includeFontPadding="false" />
+                            <TextView android:id="@+id/trip_avg_unit"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp" android:text="@string/avg_kmh"
+                                android:textColor="@color/muted" android:textSize="13dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/trip_max"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textColor="@color/ink" android:textSize="34dp"
+                                android:fontFamily="sans-serif-medium" android:includeFontPadding="false" />
+                            <TextView android:id="@+id/trip_max_unit"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp" android:text="@string/max_kmh"
+                                android:textColor="@color/muted" android:textSize="13dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/trip_time"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textColor="@color/ink" android:textSize="34dp"
+                                android:fontFamily="sans-serif-medium" android:includeFontPadding="false" />
+                            <TextView
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp" android:text="@string/moving"
+                                android:textColor="@color/muted" android:textSize="13dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
                 <!-- media, as material -->
                 <LinearLayout
                     android:id="@+id/now_playing"
@@ -264,6 +362,75 @@
         android:background="#000000"
         android:alpha="0"
         android:visibility="gone" />
+
+    <!-- Trip options. Long press the trip card. No permanent chrome on the home screen. -->
+    <LinearLayout
+        android:id="@+id/trip_menu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#B3000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="452dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/menu_bg">
+
+            <TextView
+                android:id="@+id/trip_menu_new"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="72dp"
+                android:gravity="center_vertical"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="@string/start_new_trip"
+                android:textColor="@color/ink"
+                android:textSize="18dp"
+                android:fontFamily="sans-serif-medium"
+                android:background="@drawable/row_bg"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="@color/hairline" />
+
+            <TextView
+                android:id="@+id/trip_menu_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="72dp"
+                android:gravity="center_vertical"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:textColor="@color/ink_soft"
+                android:textSize="18dp" />
+
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="@color/hairline" />
+
+            <TextView
+                android:id="@+id/trip_menu_hide"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="72dp"
+                android:gravity="center_vertical"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="@string/hide_trip_card"
+                android:textColor="@color/accent"
+                android:textSize="18dp"
+                android:fontFamily="sans-serif-medium"
+                android:background="@drawable/row_bg"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+    </LinearLayout>
 
     <!--
       Screen off. Not a real display sleep: on these units sleep sometimes does not come

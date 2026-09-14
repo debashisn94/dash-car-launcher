@@ -9,4 +9,13 @@
     <string name="no_speed">--</string>
     <string name="drive_mode">Drive mode</string>
     <string name="screen_off_hint">Tap to wake</string>
+    <string name="this_trip">THIS TRIP</string>
+    <string name="last_trip">LAST TRIP</string>
+    <string name="km">km</string>
+    <string name="mi">mi</string>
+    <string name="avg_kmh">avg km/h</string>
+    <string name="max_kmh">max km/h</string>
+    <string name="moving">moving</string>
+    <string name="start_new_trip">Start a new trip</string>
+    <string name="hide_trip_card">Hide the trip card</string>
 </resources>

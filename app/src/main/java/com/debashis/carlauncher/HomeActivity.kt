@@ -125,6 +125,8 @@ class HomeActivity : Activity() {
         driveSpeed?.text = display.roundToInt().toString()
 
         lastKmh = if (ms < DEADBAND_MS) 0f else ms * 3.6f
+        Trip.onLocation(this, loc)
+        renderTrip()
         updateDriveMode()
     }
 
@@ -170,6 +172,20 @@ class HomeActivity : Activity() {
         normalCard = MediaCard(
             findViewById(R.id.now_playing), npArt, npTitle, npSub, npPlay, npNext
         )
+
+        Trip.load(this)
+        findViewById<View>(R.id.trip_card).setOnLongClickListener { showTripMenu(true); true }
+        findViewById<View>(R.id.trip_menu).setOnClickListener { showTripMenu(false) }
+        findViewById<View>(R.id.trip_menu_new).setOnClickListener {
+            Trip.reset(this)
+            showTripMenu(false)
+            renderTrip()
+        }
+        findViewById<View>(R.id.trip_menu_hide).setOnClickListener {
+            Trip.setCardEnabled(this, false)
+            showTripMenu(false)
+            renderTrip()
+        }
 
         findViewById<View>(R.id.screen_off).setOnClickListener { setScreenOff(false) }
         clockView.setOnLongClickListener { setScreenOff(true); true }
@@ -352,6 +368,62 @@ class HomeActivity : Activity() {
         applyDim()
     }
 
+    // -------------------------------------------------------------- trip
+
+    /**
+     * The trip card occupies the media card's place rather than sitting beside it. Two cards
+     * competing for the same corner is how a glanceable screen stops being glanceable.
+     */
+    private fun renderTrip() {
+        val card = findViewById<View>(R.id.trip_card) ?: return
+        val mediaShowing = controller != null &&
+                (controller?.playbackState?.state == PlaybackState.STATE_PLAYING ||
+                        controller?.playbackState?.state == PlaybackState.STATE_BUFFERING)
+
+        val show = Trip.cardEnabled(this) && Trip.hasTrip() && !mediaShowing && !inDriveMode
+        card.visibility = if (show) View.VISIBLE else View.GONE
+        normalCard?.root?.visibility = if (show) View.GONE else View.VISIBLE
+        if (!show) return
+
+        val mph = Prefs.units(this) == Prefs.UNITS_MPH
+        val distance = if (mph) Trip.distanceKm() * 0.621371 else Trip.distanceKm()
+        val avg = Trip.averageMs() * if (mph) 2.23694f else 3.6f
+        val max = Trip.maxSpeedMs() * if (mph) 2.23694f else 3.6f
+
+        findViewById<TextView>(R.id.trip_label)
+            .setText(if (Trip.isActive()) R.string.this_trip else R.string.last_trip)
+        findViewById<TextView>(R.id.trip_distance).text =
+            if (distance < 100) String.format(Locale.getDefault(), "%.1f", distance)
+            else distance.roundToInt().toString()
+        findViewById<TextView>(R.id.trip_distance_unit).setText(if (mph) R.string.mi else R.string.km)
+        findViewById<TextView>(R.id.trip_avg).text = avg.roundToInt().toString()
+        findViewById<TextView>(R.id.trip_avg_unit).text = if (mph) "avg mph" else getString(R.string.avg_kmh)
+        findViewById<TextView>(R.id.trip_max).text = max.roundToInt().toString()
+        findViewById<TextView>(R.id.trip_max_unit).text = if (mph) "max mph" else getString(R.string.max_kmh)
+
+        val minutes = Trip.movingMinutes()
+        findViewById<TextView>(R.id.trip_time).text =
+            if (minutes >= 60) "${minutes / 60}h${String.format(Locale.getDefault(), "%02d", minutes % 60)}"
+            else minutes.toString()
+    }
+
+    private fun showTripMenu(show: Boolean) {
+        val menu = findViewById<View>(R.id.trip_menu) ?: return
+        if (show) {
+            val elapsed = Trip.elapsedMinutes()
+            val elapsedText =
+                if (elapsed >= 60) "${elapsed / 60} h ${String.format(Locale.getDefault(), "%02d", elapsed % 60)} elapsed"
+                else "$elapsed min elapsed"
+            val stops = Trip.stopCount()
+            findViewById<TextView>(R.id.trip_menu_info).text =
+                "$elapsedText, ${stops} stop" + if (stops == 1) "" else "s"
+            menu.visibility = View.VISIBLE
+            menu.bringToFront()
+        } else {
+            menu.visibility = View.GONE
+        }
+    }
+
     // ------------------------------------------------------------- drive
 
     /**
@@ -408,6 +480,7 @@ class HomeActivity : Activity() {
         findViewById<View>(R.id.normal_root).visibility = View.VISIBLE
         updateClock()
         renderMedia()
+        renderTrip()
     }
 
     private fun buildDriveDock() {
@@ -621,6 +694,7 @@ class HomeActivity : Activity() {
                 card.art.setImageDrawable(null)
             }
             updateBluetooth()
+            renderTrip()
             return
         }
 
@@ -650,6 +724,7 @@ class HomeActivity : Activity() {
             card.play.visibility = View.VISIBLE
             card.next.visibility = if (canSkip) View.VISIBLE else View.GONE
         }
+        renderTrip()
     }
 
     private fun usable(value: String?): String? {
@@ -764,6 +839,7 @@ class HomeActivity : Activity() {
         unregisterReceiver(btReceiver)
         stopLocation()
         teardownMedia()
+        Trip.save(this)
         handler.removeCallbacks(staleCheck)
         handler.removeCallbacks(idleTimeout)
     }
@@ -778,6 +854,7 @@ class HomeActivity : Activity() {
         driveSpeedUnit?.text = unitLabel()
         if (inDriveMode) buildDriveDock()
         updateDriveMode()
+        renderTrip()
         applyDim()
         updateClock()
         updateBluetooth()
