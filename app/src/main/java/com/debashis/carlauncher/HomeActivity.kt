@@ -48,46 +48,7 @@ import kotlin.math.roundToInt
  */
 class HomeActivity : Activity() {
 
-    /**
-     * One dock slot. [pkg] null means the slot is handled internally.
-     *
-     * [cls] targets one specific activity. Needed because com.imotor.phoneconnect exposes
-     * four launcher activities (.Carplay, .AndroidAuto, .AndroidLink, .Airplay) and the
-     * package default lands on the wrong one. Targeting the component also picks up that
-     * activity's own icon instead of the app's generic one.
-     */
-    private data class Slot(
-        val label: String,
-        val pkg: String?,
-        val cls: String? = null,
-        val iconRes: Int = 0,
-        val primary: Boolean = false
-    )
-
     private companion object {
-        /**
-         * v2 turns this into a user-editable list in a settings screen.
-         * Keeping it as data rather than eight copies of XML is what makes that cheap.
-         */
-        val DOCK = listOf(
-            Slot("CarPlay", "com.imotor.phoneconnect", "com.imotor.phoneconnect.Carplay", primary = true),
-            Slot("Netflix", "com.netflix.mediaclient"),
-            Slot("YouTube", "com.google.android.youtube"),
-            Slot("Music", "com.imotor.music"),
-            Slot("Radio", "com.imotor.fmam"),
-            // AUX replaced 2026-09-14: never used in this car. Android Auto is the second
-            // half of how Debashis actually navigates, alongside CarPlay.
-            Slot("Android Auto", "com.imotor.phoneconnect", "com.imotor.phoneconnect.AndroidAuto"),
-            // com.imotor.dialer has NO launchable activity on this unit. The phone UI
-            // (contacts, call log, dial pad over Bluetooth) is com.imotor.contacts.
-            Slot("Phone", "com.imotor.contacts", "com.imotor.contacts.ui.MainActivity"),
-            Slot("All apps", null, iconRes = R.drawable.ic_all_apps)
-        )
-
-        /** Other phoneconnect entry points, if a slot is reassigned in v2. */
-        const val AIRPLAY = "com.imotor.phoneconnect.Airplay"
-        const val ANDROID_LINK = "com.imotor.phoneconnect.AndroidLink"
-
         const val REQ_LOCATION = 1
 
         /**
@@ -96,8 +57,8 @@ class HomeActivity : Activity() {
          */
         const val SPEED_STALE_MS = 5000L
 
-        /** Below this, a GPS reading is standstill jitter rather than movement. */
-        const val SPEED_DEADBAND_KMH = 3f
+        /** Below this, a GPS reading is standstill jitter rather than movement. 3 km/h. */
+        const val DEADBAND_MS = 0.833f
         const val TICK_MS = 1000L
     }
 
@@ -128,11 +89,15 @@ class HomeActivity : Activity() {
     private val locationListener = LocationListener { loc: Location ->
         lastFixAt = SystemClock.elapsedRealtime()
         // getSpeed() is metres per second. Never negative, but clamp anyway.
-        val kmh = (loc.speed * 3.6f).coerceAtLeast(0f)
-        // GPS jitters by a couple of km/h at a standstill, so a parked car reads 1 or 2.
-        // Anything below the deadband is noise, not motion.
-        speedView.text = if (kmh < SPEED_DEADBAND_KMH) "0" else kmh.roundToInt().toString()
+        val ms = loc.speed.coerceAtLeast(0f)
+        // GPS jitters at a standstill, so a parked car reads 1 or 2. The deadband is held
+        // in m/s so it means the same thing in either unit.
+        val display = if (ms < DEADBAND_MS) 0f else ms * unitFactor()
+        speedView.text = display.roundToInt().toString()
     }
+
+    private fun unitFactor() =
+        if (Prefs.units(this) == Prefs.UNITS_MPH) 2.23694f else 3.6f
 
     private val gnssCallback = object : GnssStatus.Callback() {
         override fun onSatelliteStatusChanged(status: GnssStatus) {
@@ -251,51 +216,68 @@ class HomeActivity : Activity() {
         dock.removeAllViews()
         val inflater = LayoutInflater.from(this)
 
-        for (slot in DOCK) {
+        for (slot in Prefs.dock(this)) {
+            // An empty slot still occupies its share of the row, so the remaining tiles do
+            // not shuffle sideways every time one is cleared.
             val view = inflater.inflate(R.layout.dock_item, dock, false)
             val icon = view.findViewById<ImageView>(R.id.icon)
             val label = view.findViewById<TextView>(R.id.label)
-            label.text = slot.label
 
-            if (slot.pkg == null) {
-                icon.setImageResource(slot.iconRes)
-                icon.setBackgroundResource(R.drawable.squircle_neutral)
-                val pad = dp(28)
-                icon.setPadding(pad, pad, pad, pad)
-                view.setOnClickListener {
-                    startActivity(Intent(this, DrawerActivity::class.java))
-                }
-            } else {
-                val resolved = resolve(slot)
-                if (resolved == null) {
-                    // Package missing, disabled, or exposes no launchable activity.
-                    // Dim it and make it inert rather than crashing or lying about what
-                    // is there. 16 packages were disabled on this unit already.
-                    view.alpha = 0.35f
+            when {
+                slot.component.isEmpty() -> {
+                    label.text = ""
                     view.isClickable = false
-                } else {
-                    icon.setImageDrawable(resolved.first)
-                    view.setOnClickListener { startActivity(resolved.second) }
                 }
+
+                slot.component == Prefs.DRAWER -> {
+                    icon.setImageResource(R.drawable.ic_all_apps)
+                    icon.setBackgroundResource(R.drawable.squircle_neutral)
+                    val pad = dp(28)
+                    icon.setPadding(pad, pad, pad, pad)
+                    label.text = if (slot.label.isNotBlank()) slot.label else getString(R.string.all_apps)
+                    view.setOnClickListener {
+                        startActivity(Intent(this, DrawerActivity::class.java))
+                    }
+                }
+
+                else -> {
+                    val resolved = resolve(slot.component)
+                    if (resolved == null) {
+                        // Package missing, disabled, or exposing no launchable activity.
+                        // Dim it rather than crashing or lying about what is there.
+                        label.text = if (slot.label.isNotBlank()) slot.label else ""
+                        view.alpha = 0.35f
+                        view.isClickable = false
+                    } else {
+                        icon.setImageDrawable(resolved.first)
+                        label.text = if (slot.label.isNotBlank()) slot.label
+                        else appLabel(slot.component.substringBefore('/'))
+                        view.setOnClickListener { startActivity(resolved.second) }
+                    }
+                }
+            }
+
+            // Long press anywhere on the dock opens Settings. A dedicated Settings tile would
+            // cost one of only eight app slots.
+            view.setOnLongClickListener {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
             }
             dock.addView(view)
         }
     }
 
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-
     /** Returns the icon and the intent to launch, or null if the slot is not usable. */
-    private fun resolve(slot: Slot): Pair<Drawable, Intent>? {
-        val pkg = slot.pkg ?: return null
+    private fun resolve(component: String): Pair<Drawable, Intent>? {
+        val pkg = component.substringBefore('/')
         return try {
-            if (slot.cls != null) {
-                val component = ComponentName(pkg, slot.cls)
-                // Throws NameNotFoundException if the activity is gone or disabled.
-                val activityInfo = packageManager.getActivityInfo(component, 0)
+            if (component.contains('/')) {
+                val cn = ComponentName(pkg, component.substringAfter('/'))
+                val activityInfo = packageManager.getActivityInfo(cn, 0)
                 if (!activityInfo.enabled) return null
                 val intent = Intent(Intent.ACTION_MAIN)
                     .addCategory(Intent.CATEGORY_LAUNCHER)
-                    .setComponent(component)
+                    .setComponent(cn)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 activityInfo.loadIcon(packageManager) to intent
             } else {
@@ -307,11 +289,19 @@ class HomeActivity : Activity() {
         }
     }
 
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+
     // ------------------------------------------------------------ clock
 
     private fun updateClock() {
-        // Follows the unit's own 12 vs 24 hour setting rather than hardcoding either.
-        val pattern = if (android.text.format.DateFormat.is24HourFormat(this)) "H:mm" else "h:mm"
+        // Settings can override; the default still follows the unit's own setting.
+        val use24 = when (Prefs.clockFormat(this)) {
+            12 -> false
+            24 -> true
+            else -> android.text.format.DateFormat.is24HourFormat(this)
+        }
+        val pattern = if (use24) "H:mm" else "h:mm"
         val now = Date()
         clockView.text = SimpleDateFormat(pattern, Locale.getDefault()).format(now)
         dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now)
@@ -539,6 +529,9 @@ class HomeActivity : Activity() {
         // and the wallpaper file may have been replaced.
         loadWallpaper()
         buildDock()
+        findViewById<TextView>(R.id.speed_unit).text =
+            if (Prefs.units(this) == Prefs.UNITS_MPH) "mph" else getString(R.string.kmh)
+        updateClock()
         updateBluetooth()
     }
 

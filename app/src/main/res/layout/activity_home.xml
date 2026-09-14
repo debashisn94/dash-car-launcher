@@ -135,6 +135,7 @@
                         android:includeFontPadding="false" />
 
                     <TextView
+                        android:id="@+id/speed_unit"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
