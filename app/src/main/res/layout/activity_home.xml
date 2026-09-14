@@ -32,6 +32,7 @@
         android:background="@drawable/scrim_hero" />
 
     <LinearLayout
+        android:id="@+id/normal_root"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
@@ -241,5 +242,59 @@
             android:paddingTop="22dp"
             android:paddingBottom="26dp"
             android:baselineAligned="false" />
+    </LinearLayout>
+
+    <!-- Inflated on first use. A car that never moves never pays for it. -->
+    <ViewStub
+        android:id="@+id/drive_stub"
+        android:layout="@layout/home_drive"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:inflatedId="@+id/drive_root" />
+
+    <!--
+      Night dimming. A plain black view at low alpha over everything, which costs one
+      composited layer. Dimming via alpha on each element would mean touching every view
+      and would still not dim the wallpaper.
+    -->
+    <View
+        android:id="@+id/night_dim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:alpha="0"
+        android:visibility="gone" />
+
+    <!--
+      Screen off. Not a real display sleep: on these units sleep sometimes does not come
+      back cleanly, and a black view is instant and safe. Tap anywhere to wake.
+    -->
+    <LinearLayout
+        android:id="@+id/screen_off"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#FF000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/screen_off_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#40FFFFFF"
+            android:textSize="64dp"
+            android:fontFamily="sans-serif-light"
+            android:letterSpacing="-0.04" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/screen_off_hint"
+            android:textColor="#26FFFFFF"
+            android:textSize="16dp" />
     </LinearLayout>
 </FrameLayout>

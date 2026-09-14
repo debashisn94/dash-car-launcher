@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Drive mode. Inflated from a ViewStub the first time it is needed, so a car that never
+  moves never pays for it.
+
+  Four targets at 282 x 200dp instead of eight at 138 x 196. Speed is the largest thing on
+  screen because it is the only thing that should be glanced at while moving.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drive_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="466dp"
+        android:orientation="horizontal"
+        android:paddingStart="60dp"
+        android:paddingEnd="60dp"
+        android:paddingTop="54dp"
+        android:paddingBottom="40dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom">
+
+                <TextView
+                    android:id="@+id/drive_speed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/accent"
+                    android:textSize="250dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:letterSpacing="-0.05"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/drive_speed_unit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginBottom="34dp"
+                    android:text="@string/kmh"
+                    android:textColor="@color/ink_soft"
+                    android:textSize="30dp"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/drive_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/chip_bg"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:text="@string/drive_mode"
+                android:textColor="@color/ink_soft"
+                android:textSize="15dp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/drive_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10:42"
+                android:textColor="#D1FFFFFF"
+                android:textSize="76dp"
+                android:fontFamily="sans-serif-light"
+                android:letterSpacing="-0.04"
+                android:includeFontPadding="false" />
+
+            <LinearLayout
+                android:id="@+id/drive_now_playing"
+                android:layout_width="470dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/material_card"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/drive_np_art"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/art_gradient"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@null" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="16dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/drive_np_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/nothing_playing"
+                        android:textColor="@color/ink"
+                        android:textSize="21dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+
+                    <TextView
+                        android:id="@+id/drive_np_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/nothing_playing_sub"
+                        android:textColor="@color/muted"
+                        android:textSize="16dp"
+                        android:singleLine="true"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/drive_np_play"
+                    android:layout_width="58dp"
+                    android:layout_height="58dp"
+                    android:padding="14dp"
+                    android:src="@drawable/ic_play"
+                    android:background="@drawable/ctrl_bg"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/drive_np_next"
+                    android:layout_width="58dp"
+                    android:layout_height="58dp"
+                    android:padding="15dp"
+                    android:src="@drawable/ic_next"
+                    android:background="@drawable/ctrl_bg"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="@null" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/drive_dock"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:background="@color/dock_bg"
+        android:paddingStart="36dp"
+        android:paddingEnd="36dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="30dp"
+        android:baselineAligned="false" />
+</LinearLayout>

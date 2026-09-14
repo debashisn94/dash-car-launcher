@@ -7,4 +7,6 @@
     <string name="bt_connected_sub">Ready to play</string>
     <string name="kmh">km/h</string>
     <string name="no_speed">--</string>
+    <string name="drive_mode">Drive mode</string>
+    <string name="screen_off_hint">Tap to wake</string>
 </resources>

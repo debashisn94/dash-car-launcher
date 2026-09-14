@@ -27,6 +27,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.LayoutInflater
+import android.view.ViewStub
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -34,6 +35,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.io.File
@@ -73,6 +75,32 @@ class HomeActivity : Activity() {
     private lateinit var npPlay: ImageView
     private lateinit var npNext: ImageView
 
+    /**
+     * Media card views, so the same render path can drive either layout.
+     * Drive mode is a second inflated hierarchy, not the same views moved around.
+     */
+    private class MediaCard(
+        val root: View,
+        val art: ImageView,
+        val title: TextView,
+        val sub: TextView,
+        val play: ImageView,
+        val next: ImageView
+    )
+
+    private var normalCard: MediaCard? = null
+    private var driveCard: MediaCard? = null
+
+    private var driveRoot: View? = null
+    private var driveSpeed: TextView? = null
+    private var driveSpeedUnit: TextView? = null
+    private var driveClock: TextView? = null
+    private var driveDock: LinearLayout? = null
+
+    private var inDriveMode = false
+    private var idleDimmed = false
+    private var lastKmh = 0f
+
     private val handler = Handler(Looper.getMainLooper())
     private var lastFixAt = 0L
     private var satellites = 0
@@ -94,6 +122,10 @@ class HomeActivity : Activity() {
         // in m/s so it means the same thing in either unit.
         val display = if (ms < DEADBAND_MS) 0f else ms * unitFactor()
         speedView.text = display.roundToInt().toString()
+        driveSpeed?.text = display.roundToInt().toString()
+
+        lastKmh = if (ms < DEADBAND_MS) 0f else ms * 3.6f
+        updateDriveMode()
     }
 
     private fun unitFactor() =
@@ -134,6 +166,13 @@ class HomeActivity : Activity() {
         npArt = findViewById(R.id.np_art)
         npPlay = findViewById(R.id.np_play)
         npNext = findViewById(R.id.np_next)
+
+        normalCard = MediaCard(
+            findViewById(R.id.now_playing), npArt, npTitle, npSub, npPlay, npNext
+        )
+
+        findViewById<View>(R.id.screen_off).setOnClickListener { setScreenOff(false) }
+        clockView.setOnLongClickListener { setScreenOff(true); true }
 
         npPlay.setOnClickListener {
             val c = controller ?: return@setOnClickListener
@@ -303,9 +342,206 @@ class HomeActivity : Activity() {
         }
         val pattern = if (use24) "H:mm" else "h:mm"
         val now = Date()
-        clockView.text = SimpleDateFormat(pattern, Locale.getDefault()).format(now)
+        val time = SimpleDateFormat(pattern, Locale.getDefault()).format(now)
+        clockView.text = time
+        driveClock?.text = time
+        findViewById<TextView>(R.id.screen_off_clock)?.text = time
         dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now)
+        // Cheap enough to re-evaluate on the minute tick: auto night has to change at sunset
+        // even if the car has not moved.
+        applyDim()
     }
+
+    // ------------------------------------------------------------- drive
+
+    /**
+     * Two thresholds, never one. A single value flips the whole interface back and forth
+     * every time the speed hovers around it, which in stop-start traffic is constant.
+     */
+    private fun updateDriveMode() {
+        if (!Prefs.driveEnabled(this)) {
+            if (inDriveMode) leaveDriveMode()
+            return
+        }
+        if (!inDriveMode && lastKmh >= Prefs.driveOn(this)) enterDriveMode()
+        else if (inDriveMode && lastKmh <= Prefs.driveOff(this)) leaveDriveMode()
+    }
+
+    private fun ensureDriveInflated() {
+        if (driveRoot != null) return
+        val stub = findViewById<ViewStub>(R.id.drive_stub) ?: return
+        val root = stub.inflate()
+        driveRoot = root
+        driveSpeed = root.findViewById(R.id.drive_speed)
+        driveSpeedUnit = root.findViewById(R.id.drive_speed_unit)
+        driveClock = root.findViewById(R.id.drive_clock)
+        driveDock = root.findViewById(R.id.drive_dock)
+
+        driveCard = MediaCard(
+            root.findViewById(R.id.drive_now_playing),
+            root.findViewById(R.id.drive_np_art),
+            root.findViewById(R.id.drive_np_title),
+            root.findViewById(R.id.drive_np_sub),
+            root.findViewById(R.id.drive_np_play),
+            root.findViewById(R.id.drive_np_next)
+        )
+        driveCard?.play?.setOnClickListener { togglePlayPause() }
+        driveCard?.next?.setOnClickListener { controller?.transportControls?.skipToNext() }
+        driveCard?.root?.setOnClickListener { openPlayingApp() }
+        driveClock?.setOnLongClickListener { setScreenOff(true); true }
+    }
+
+    private fun enterDriveMode() {
+        ensureDriveInflated()
+        inDriveMode = true
+        buildDriveDock()
+        driveSpeedUnit?.text = unitLabel()
+        findViewById<View>(R.id.normal_root).visibility = View.GONE
+        driveRoot?.visibility = View.VISIBLE
+        updateClock()
+        renderMedia()
+    }
+
+    private fun leaveDriveMode() {
+        inDriveMode = false
+        driveRoot?.visibility = View.GONE
+        findViewById<View>(R.id.normal_root).visibility = View.VISIBLE
+        updateClock()
+        renderMedia()
+    }
+
+    private fun buildDriveDock() {
+        val dock = driveDock ?: return
+        dock.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+
+        val slots = Prefs.driveDock(this) + Prefs.Slot(Prefs.DRAWER, getString(R.string.all_apps))
+        for (slot in slots) {
+            val view = inflater.inflate(R.layout.drive_tile, dock, false)
+            val icon = view.findViewById<ImageView>(R.id.icon)
+            val label = view.findViewById<TextView>(R.id.label)
+
+            when {
+                slot.component == Prefs.DRAWER -> {
+                    icon.setImageResource(R.drawable.ic_all_apps)
+                    label.text = slot.label
+                    view.setOnClickListener {
+                        startActivity(Intent(this, DrawerActivity::class.java))
+                    }
+                }
+                slot.component.isEmpty() -> {
+                    label.text = ""
+                    view.isClickable = false
+                }
+                else -> {
+                    val resolved = resolve(slot.component)
+                    if (resolved == null) {
+                        view.alpha = 0.35f
+                        view.isClickable = false
+                        label.text = slot.label
+                    } else {
+                        icon.setImageDrawable(resolved.first)
+                        label.text = if (slot.label.isNotBlank()) slot.label
+                        else appLabel(slot.component.substringBefore('/'))
+                        view.setOnClickListener { startActivity(resolved.second) }
+                    }
+                }
+            }
+            dock.addView(view)
+        }
+    }
+
+    // ------------------------------------------------------------- night
+
+    /**
+     * Two reasons the screen dims, combined into one black overlay at the higher of the two
+     * levels. One layer, not per-element alpha: dimming each view would mean touching every
+     * one of them and would still leave the wallpaper at full brightness.
+     *
+     * 1. NIGHT. A clock comparison. An earlier version computed sunrise and sunset from the
+     *    GPS fix, which was cleverness for its own sake: it needed a location before it could
+     *    decide anything and gave a worse answer than "is it evening yet".
+     * 2. IDLE. Nothing touched for a few minutes while the home screen is showing. A map or a
+     *    video is a different app in the foreground, so this activity is stopped and the timer
+     *    is not running: the "do not dim during navigation" case handles itself.
+     */
+    private fun applyDim() {
+        val dim = findViewById<View>(R.id.night_dim) ?: return
+
+        val nightFraction = if (isNightNow()) Prefs.nightLevel(this) / 100f else 0f
+        val idleFraction = if (idleDimmed) Prefs.IDLE_LEVEL / 100f else 0f
+        val level = maxOf(nightFraction, idleFraction)
+
+        dim.visibility = if (level > 0f) View.VISIBLE else View.GONE
+        dim.alpha = level
+    }
+
+    private fun isNightNow(): Boolean = when (Prefs.nightMode(this)) {
+        Prefs.NIGHT_ON -> true
+        Prefs.NIGHT_OFF -> false
+        else -> {
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val start = Prefs.nightStart(this)
+            val end = Prefs.nightEnd(this)
+            // Night wraps midnight, so "after 19 or before 6" rather than a simple range.
+            if (start > end) hour >= start || hour < end else hour in start until end
+        }
+    }
+
+    // -------------------------------------------------------------- idle
+
+    private val idleTimeout = Runnable {
+        if (Prefs.idleDimEnabled(this)) {
+            idleDimmed = true
+            applyDim()
+        }
+    }
+
+    private fun restartIdleTimer() {
+        handler.removeCallbacks(idleTimeout)
+        if (!Prefs.idleDimEnabled(this)) return
+        handler.postDelayed(idleTimeout, Prefs.idleMinutes(this) * 60_000L)
+    }
+
+    /**
+     * Fires for any touch or key anywhere in this activity, so no view needs its own listener
+     * and a tap that also presses a tile still counts as activity.
+     */
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (idleDimmed) {
+            idleDimmed = false
+            applyDim()
+        }
+        restartIdleTimer()
+    }
+
+    // --------------------------------------------------------- screen off
+    // --------------------------------------------------------- screen off
+
+    private fun setScreenOff(off: Boolean) {
+        val view = findViewById<View>(R.id.screen_off) ?: return
+        if (off) {
+            findViewById<TextView>(R.id.screen_off_clock).text = clockView.text
+            view.visibility = View.VISIBLE
+            view.bringToFront()
+        } else {
+            view.visibility = View.GONE
+        }
+    }
+
+    private fun togglePlayPause() {
+        val c = controller ?: return
+        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause()
+        else c.transportControls.play()
+    }
+
+    private fun openPlayingApp() {
+        val pkg = controller?.packageName ?: "com.imotor.music"
+        packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
+    }
+
+    private fun unitLabel() = if (Prefs.units(this) == Prefs.UNITS_MPH) "mph" else getString(R.string.kmh)
 
     // ------------------------------------------------------------ media
 
@@ -365,6 +601,9 @@ class HomeActivity : Activity() {
         renderMedia()
     }
 
+    /** Every inflated card, so switching layouts never shows stale media. */
+    private fun cards() = listOfNotNull(normalCard, driveCard)
+
     private fun renderMedia() {
         val c = controller
         val metadata = c?.metadata
@@ -376,37 +615,41 @@ class HomeActivity : Activity() {
         // FM radio (com.imotor.fmam) publishes a live session with `metadata: null` and
         // state=3, so requiring a title made a playing radio read as "Nothing playing".
         if (c == null || (!active && title == null)) {
-            npPlay.visibility = View.GONE
-            npNext.visibility = View.GONE
-            npArt.setImageDrawable(null)
+            for (card in cards()) {
+                card.play.visibility = View.GONE
+                card.next.visibility = View.GONE
+                card.art.setImageDrawable(null)
+            }
             updateBluetooth()
             return
         }
 
         // No title means a source with nothing to name, like a radio band. The app is the
         // most useful label we have.
-        npTitle.text = title ?: appLabel(c.packageName)
-
-        npSub.text = usable(metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST))
+        val shownTitle = title ?: appLabel(c.packageName)
+        val shownSub = usable(metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST))
             ?: usable(metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST))
             ?: usable(metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM))
             ?: if (title != null) appLabel(c.packageName) else "Playing"
 
         val art = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
-        // Null leaves the gradient background showing, which is a better empty state
-        // than a grey box.
-        npArt.setImageBitmap(art)
 
-        npPlay.setImageResource(
-            if (state == PlaybackState.STATE_PLAYING) R.drawable.ic_pause else R.drawable.ic_play
-        )
-        npPlay.visibility = View.VISIBLE
-
+        val playing = state == PlaybackState.STATE_PLAYING
         // Only offer skip when the session says it supports it. Radio uses it to change
         // station; a source that cannot skip should not show a dead button.
         val canSkip = (c.playbackState?.actions ?: 0L) and PlaybackState.ACTION_SKIP_TO_NEXT != 0L
-        npNext.visibility = if (canSkip) View.VISIBLE else View.GONE
+
+        for (card in cards()) {
+            card.title.text = shownTitle
+            card.sub.text = shownSub
+            // Null leaves the gradient background showing, which is a better empty state
+            // than a grey box.
+            card.art.setImageBitmap(art)
+            card.play.setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
+            card.play.visibility = View.VISIBLE
+            card.next.visibility = if (canSkip) View.VISIBLE else View.GONE
+        }
     }
 
     private fun usable(value: String?): String? {
@@ -437,12 +680,12 @@ class HomeActivity : Activity() {
 
         // Only owns the card when no media session is active.
         if (controller != null) return
-        if (connected) {
-            npTitle.text = "Bluetooth audio"
-            npSub.text = getString(R.string.bt_connected_sub)
-        } else {
-            npTitle.text = getString(R.string.nothing_playing)
-            npSub.text = getString(R.string.nothing_playing_sub)
+        val title = if (connected) "Bluetooth audio" else getString(R.string.nothing_playing)
+        val sub = if (connected) getString(R.string.bt_connected_sub)
+        else getString(R.string.nothing_playing_sub)
+        for (card in cards()) {
+            card.title.text = title
+            card.sub.text = sub
         }
     }
 
@@ -512,6 +755,7 @@ class HomeActivity : Activity() {
         startLocation()
         setupMedia()
         handler.post(staleCheck)
+        restartIdleTimer()
     }
 
     override fun onStop() {
@@ -521,6 +765,7 @@ class HomeActivity : Activity() {
         stopLocation()
         teardownMedia()
         handler.removeCallbacks(staleCheck)
+        handler.removeCallbacks(idleTimeout)
     }
 
     override fun onResume() {
@@ -529,8 +774,11 @@ class HomeActivity : Activity() {
         // and the wallpaper file may have been replaced.
         loadWallpaper()
         buildDock()
-        findViewById<TextView>(R.id.speed_unit).text =
-            if (Prefs.units(this) == Prefs.UNITS_MPH) "mph" else getString(R.string.kmh)
+        findViewById<TextView>(R.id.speed_unit).text = unitLabel()
+        driveSpeedUnit?.text = unitLabel()
+        if (inDriveMode) buildDriveDock()
+        updateDriveMode()
+        applyDim()
         updateClock()
         updateBluetooth()
     }

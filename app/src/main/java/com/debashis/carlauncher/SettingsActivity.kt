@@ -25,6 +25,7 @@ class SettingsActivity : Activity() {
 
     private enum class Section(val title: String, val subtitle: String) {
         DOCK("Dock", "Eight slots. Tap one to choose a different app."),
+        DRIVING("Driving", "What the screen does while the car is moving."),
         WALLPAPER("Wallpaper", "Shown behind the clock. Landscape images work best."),
         DISPLAY("Display", "Clock format and speed units."),
         ABOUT("About", "")
@@ -37,6 +38,7 @@ class SettingsActivity : Activity() {
 
     private var section = Section.DOCK
     private var editingSlot = -1
+    private var editingDriveSlot = -1
 
     private lateinit var nav: LinearLayout
     private lateinit var content: LinearLayout
@@ -92,6 +94,7 @@ class SettingsActivity : Activity() {
         content.removeAllViews()
         when (section) {
             Section.DOCK -> renderDock()
+            Section.DRIVING -> renderDriving()
             Section.WALLPAPER -> renderWallpaper()
             Section.DISPLAY -> renderDisplay()
             Section.ABOUT -> renderAbout()
@@ -165,6 +168,98 @@ class SettingsActivity : Activity() {
         content.addView(reset)
     }
 
+    private fun renderDriving() {
+        val onOff = newGroup()
+        val enabled = Prefs.driveEnabled(this)
+        val row = newRow(onOff)
+        row.findViewById<TextView>(R.id.row_title).text = "Drive mode"
+        row.findViewById<TextView>(R.id.row_sub).text =
+            "Simplifies the screen while moving. Four large targets instead of eight."
+        row.findViewById<TextView>(R.id.row_value).apply {
+            text = if (enabled) "On" else "Off"
+            setTextColor(getColor(R.color.accent))
+        }
+        row.setOnClickListener {
+            Prefs.setDriveEnabled(this, !enabled)
+            render()
+        }
+        onOff.addView(row)
+        content.addView(onOff)
+
+        if (!enabled) return
+
+        // Tapping cycles rather than opening a slider. A slider is a precision instrument
+        // and this gets used in a parked car with one thumb.
+        val thresholds = newGroup()
+        val on = Prefs.driveOn(this)
+        val off = Prefs.driveOff(this)
+        val unit = if (Prefs.units(this) == Prefs.UNITS_MPH) "mph" else "km/h"
+        val factor = if (Prefs.units(this) == Prefs.UNITS_MPH) 0.621371f else 1f
+
+        val onRow = newRow(thresholds)
+        onRow.findViewById<TextView>(R.id.row_title).text = "Engage above"
+        onRow.findViewById<TextView>(R.id.row_sub).text = "Tap to change"
+        onRow.findViewById<TextView>(R.id.row_value).text = "${(on * factor).toInt()} $unit"
+        onRow.setOnClickListener {
+            val options = listOf(20, 25, 30, 40, 50, 60)
+            val next = options[(options.indexOf(on).takeIf { i -> i >= 0 }?.plus(1) ?: 0) % options.size]
+            // Keep the gap. Equal thresholds reintroduce exactly the flicker they prevent.
+            Prefs.setDriveThresholds(this, next, (next * 0.6f).toInt())
+            render()
+        }
+        thresholds.addView(onRow)
+
+        val offRow = newRow(thresholds)
+        offRow.findViewById<TextView>(R.id.row_title).text = "Return below"
+        offRow.findViewById<TextView>(R.id.row_sub).text =
+            "Kept lower than the engage speed so traffic does not flicker the screen"
+        offRow.findViewById<TextView>(R.id.row_value).text = "${(off * factor).toInt()} $unit"
+        offRow.isClickable = false
+        thresholds.addView(offRow)
+
+        content.addView(spacer())
+        content.addView(header("Speed"))
+        content.addView(thresholds)
+
+        val slots = newGroup()
+        for ((index, slot) in Prefs.driveDock(this).withIndex()) {
+            val r = newRow(slots)
+            val resolved = resolve(slot)
+            r.findViewById<TextView>(R.id.row_title).text = "Tile ${index + 1}"
+            r.findViewById<ImageView>(R.id.row_icon).setImageDrawable(resolved)
+            r.findViewById<TextView>(R.id.row_sub).apply {
+                when {
+                    slot.component.isEmpty() -> text = "Empty"
+                    resolved == null -> {
+                        text = "Not installed on this unit"
+                        setTextColor(getColor(R.color.accent))
+                    }
+                    else -> text = labelFor(slot, appLabel(slot.component))
+                }
+            }
+            r.setOnClickListener {
+                editingDriveSlot = index
+                startActivityForResult(
+                    Intent(this, AppPickerActivity::class.java)
+                        .putExtra(AppPickerActivity.EXTRA_SLOT, index),
+                    REQ_PICK_APP
+                )
+            }
+            slots.addView(r)
+        }
+        content.addView(spacer())
+        content.addView(header("Tiles while moving"))
+        content.addView(slots)
+
+        val note = TextView(this).apply {
+            text = "All apps is always the fourth tile."
+            setTextColor(getColor(R.color.muted))
+            textSize = 14f
+            setPadding(dp(6), dp(10), 0, 0)
+        }
+        content.addView(note)
+    }
+
     private fun renderWallpaper() {
         val file = File(getExternalFilesDir(null), "wallpaper.jpg")
         val group = newGroup()
@@ -228,6 +323,70 @@ class SettingsActivity : Activity() {
         content.addView(spacer())
         content.addView(header("Speed units"))
         content.addView(unitsGroup)
+
+        // --- night dimming ---
+        val nightGroup = newGroup()
+        val mode = Prefs.nightMode(this)
+        val start = Prefs.nightStart(this)
+        val end = Prefs.nightEnd(this)
+        addChoice(nightGroup, "Automatic", "Dim between ${start}:00 and ${end}:00",
+            mode == Prefs.NIGHT_AUTO) { Prefs.setNightMode(this, Prefs.NIGHT_AUTO); render() }
+        addChoice(nightGroup, "Always dim", "", mode == Prefs.NIGHT_ON) {
+            Prefs.setNightMode(this, Prefs.NIGHT_ON); render()
+        }
+        addChoice(nightGroup, "Never dim", "", mode == Prefs.NIGHT_OFF) {
+            Prefs.setNightMode(this, Prefs.NIGHT_OFF); render()
+        }
+
+        val levelRow = newRow(nightGroup)
+        levelRow.findViewById<TextView>(R.id.row_title).text = "How dim"
+        levelRow.findViewById<TextView>(R.id.row_sub).text = "Tap to change"
+        levelRow.findViewById<TextView>(R.id.row_value).text = "${Prefs.nightLevel(this)}%"
+        levelRow.setOnClickListener {
+            val options = listOf(20, 35, 45, 60, 75)
+            val current = Prefs.nightLevel(this)
+            val next = options[(options.indexOf(current).takeIf { i -> i >= 0 }?.plus(1) ?: 0) % options.size]
+            Prefs.setNightLevel(this, next)
+            render()
+        }
+        nightGroup.addView(levelRow)
+
+        content.addView(spacer())
+        content.addView(header("Night dimming"))
+        content.addView(nightGroup)
+
+        // --- idle dimming ---
+        val idleGroup = newGroup()
+        val idleOn = Prefs.idleDimEnabled(this)
+        val idleRow = newRow(idleGroup)
+        idleRow.findViewById<TextView>(R.id.row_title).text = "Dim when idle"
+        idleRow.findViewById<TextView>(R.id.row_sub).text =
+            "Only while this screen is showing, so navigation and video are never dimmed"
+        idleRow.findViewById<TextView>(R.id.row_value).apply {
+            text = if (idleOn) "On" else "Off"
+            setTextColor(getColor(R.color.accent))
+        }
+        idleRow.setOnClickListener { Prefs.setIdleDimEnabled(this, !idleOn); render() }
+        idleGroup.addView(idleRow)
+
+        if (idleOn) {
+            val delayRow = newRow(idleGroup)
+            delayRow.findViewById<TextView>(R.id.row_title).text = "After"
+            delayRow.findViewById<TextView>(R.id.row_sub).text = "Tap to change"
+            delayRow.findViewById<TextView>(R.id.row_value).text = "${Prefs.idleMinutes(this)} min"
+            delayRow.setOnClickListener {
+                val options = listOf(1, 2, 3, 5, 10)
+                val current = Prefs.idleMinutes(this)
+                val next = options[(options.indexOf(current).takeIf { i -> i >= 0 }?.plus(1) ?: 0) % options.size]
+                Prefs.setIdleMinutes(this, next)
+                render()
+            }
+            idleGroup.addView(delayRow)
+        }
+
+        content.addView(spacer())
+        content.addView(header("Idle dimming"))
+        content.addView(idleGroup)
     }
 
     private fun renderAbout() {
@@ -343,11 +502,17 @@ class SettingsActivity : Activity() {
             REQ_PICK_APP -> {
                 val component = data?.getStringExtra(AppPickerActivity.EXTRA_COMPONENT) ?: return
                 val label = data.getStringExtra(AppPickerActivity.EXTRA_LABEL).orEmpty()
-                if (editingSlot >= 0) {
-                    Prefs.setSlot(this, editingSlot, Prefs.Slot(component, label))
-                    editingSlot = -1
-                    render()
+                when {
+                    editingDriveSlot >= 0 -> {
+                        Prefs.setDriveSlot(this, editingDriveSlot, Prefs.Slot(component, label))
+                        editingDriveSlot = -1
+                    }
+                    editingSlot >= 0 -> {
+                        Prefs.setSlot(this, editingSlot, Prefs.Slot(component, label))
+                        editingSlot = -1
+                    }
                 }
+                render()
             }
             REQ_PICK_IMAGE -> {
                 val uri = data?.data ?: return
