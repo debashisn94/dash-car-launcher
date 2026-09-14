@@ -76,11 +76,13 @@ firmware family, which myTVS and a number of other rebadged Chinese units are bu
 
 **On a unit from a different vendor those tiles appear dimmed and do nothing.** They will not
 crash: every slot is resolved at runtime and falls back to inert. Netflix, YouTube and All apps
-still work, and the drawer still shows everything installed. To fix the rest, edit the `DOCK`
-list in [`HomeActivity.kt`](app/src/main/java/com/debashis/carlauncher/HomeActivity.kt) and
-rebuild. It is a plain list of package names, deliberately kept as data rather than XML.
+still work, and the drawer still shows everything installed.
 
-Find your own package names with:
+**Fixing it needs no rebuild.** Long press the dock to open Settings, then Dock, then tap any
+slot and choose one of your own apps. Note that the picker selects at *component* level, not
+package level, which matters on firmware where one package exposes several launcher activities.
+
+If you would rather see the raw list first:
 
 ```bash
 adb shell cmd package query-activities --brief \
@@ -94,8 +96,9 @@ Android 11, 1280x720 at density 160.
 
 ## Install
 
-The APK is debug-signed. That is fine for sideloading, and it means you cannot install it over
-a release-signed copy of the same package.
+Builds from v1.1 onward are release-signed. The v1.0 APK on the releases page was debug-signed,
+so upgrading from it requires an uninstall first. That is a one-time break; every version after
+this installs cleanly over the last.
 
 ### 1. Get into Developer options
 
@@ -136,7 +139,7 @@ beats memorising a number.
 ### 3. Install
 
 ```bash
-adb install -r dash-v1.0.apk
+adb install -r dash-v1.2.apk
 ```
 
 ### 4. Grant what it needs
