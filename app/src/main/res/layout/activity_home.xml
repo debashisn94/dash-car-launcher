@@ -324,6 +324,27 @@
                         android:focusable="true"
                         android:contentDescription="@null" />
                 </LinearLayout>
+
+                <!--
+                  Compact trip line, for when the media card is already using the full card
+                  slot. A second full card would not fit in the 137dp of spare height, and
+                  two cards competing for one corner stops the screen being glanceable.
+                -->
+                <TextView
+                    android:id="@+id/trip_strip"
+                    android:layout_width="452dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:gravity="end"
+                    android:textColor="@color/muted"
+                    android:textSize="15dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:singleLine="true"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
         </LinearLayout>
 

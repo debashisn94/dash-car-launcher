@@ -175,6 +175,7 @@ class HomeActivity : Activity() {
 
         Trip.load(this)
         findViewById<View>(R.id.trip_card).setOnLongClickListener { showTripMenu(true); true }
+        findViewById<View>(R.id.trip_strip).setOnLongClickListener { showTripMenu(true); true }
         findViewById<View>(R.id.trip_menu).setOnClickListener { showTripMenu(false) }
         findViewById<View>(R.id.trip_menu_new).setOnClickListener {
             Trip.reset(this)
@@ -380,10 +381,20 @@ class HomeActivity : Activity() {
                 (controller?.playbackState?.state == PlaybackState.STATE_PLAYING ||
                         controller?.playbackState?.state == PlaybackState.STATE_BUFFERING)
 
-        val show = Trip.cardEnabled(this) && Trip.hasTrip() && !mediaShowing && !inDriveMode
-        card.visibility = if (show) View.VISIBLE else View.GONE
-        normalCard?.root?.visibility = if (show) View.GONE else View.VISIBLE
-        if (!show) return
+        val strip = findViewById<TextView>(R.id.trip_strip)
+        val haveTrip = Trip.cardEnabled(this) && Trip.hasTrip() && !inDriveMode
+
+        // Media wins the card slot, because what is playing changes and a trip total does
+        // not. The trip drops to a single line underneath rather than disappearing: on a
+        // long drive there is always music playing, and hiding the trip behind it would mean
+        // never seeing the number the feature exists to show.
+        val showCard = haveTrip && !mediaShowing
+        val showStrip = haveTrip && mediaShowing
+
+        card.visibility = if (showCard) View.VISIBLE else View.GONE
+        strip.visibility = if (showStrip) View.VISIBLE else View.GONE
+        normalCard?.root?.visibility = if (showCard) View.GONE else View.VISIBLE
+        if (!haveTrip) return
 
         val mph = Prefs.units(this) == Prefs.UNITS_MPH
         val distance = if (mph) Trip.distanceKm() * 0.621371 else Trip.distanceKm()
@@ -402,9 +413,19 @@ class HomeActivity : Activity() {
         findViewById<TextView>(R.id.trip_max_unit).text = if (mph) "max mph" else getString(R.string.max_kmh)
 
         val minutes = Trip.movingMinutes()
+        val movingText =
+            if (minutes >= 60) "${minutes / 60}h${String.format(Locale.getDefault(), "%02d", minutes % 60)}"
+            else "$minutes min"
         findViewById<TextView>(R.id.trip_time).text =
             if (minutes >= 60) "${minutes / 60}h${String.format(Locale.getDefault(), "%02d", minutes % 60)}"
             else minutes.toString()
+
+        val distanceText =
+            if (distance < 100) String.format(Locale.getDefault(), "%.1f", distance)
+            else distance.roundToInt().toString()
+        val distUnit = if (mph) "mi" else "km"
+        val speedUnit = if (mph) "mph" else "km/h"
+        strip.text = "$distanceText $distUnit  ·  ${avg.roundToInt()} avg $speedUnit  ·  $movingText"
     }
 
     private fun showTripMenu(show: Boolean) {

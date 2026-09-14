@@ -76,6 +76,23 @@ Settings reset to defaults after the uninstall. That is expected.
 
 ---
 
+## 3b. Trip stats  (same drive as drive mode)
+
+- [ ] After a few km the trip card appears where "Nothing playing" was, reading **THIS TRIP**.
+- [ ] Start music: the card is replaced by the media card, and a **one-line trip strip**
+      appears under it. The trip must not vanish just because something is playing.
+- [ ] Stop the music: the full card comes back.
+- [ ] Distance looks roughly right against the odometer. Do not expect an exact match.
+- [ ] **Park for 5 minutes with the unit on.** Distance must NOT creep up. This is the whole
+      reason for the accuracy filter and the deadband.
+- [ ] Average is against moving time, so it should look like the speed you drove, not a number
+      dragged down by sitting still.
+- [ ] Long press the card or the strip: new trip, elapsed and stop count, hide.
+- [ ] Hide it, then turn it back on from Settings -> Display -> Trip card.
+- [ ] **Stop for 10 minutes, engine off, then drive again.** The trip must RESUME, not reset.
+      That is the Bargarh case and it is the one most likely to be wrong.
+- [ ] In drive mode the trip card is hidden. Speed is already the big number there.
+
 ## 4. Screen off
 
 - [ ] **Long press the clock** blanks the screen to black with a small clock.
