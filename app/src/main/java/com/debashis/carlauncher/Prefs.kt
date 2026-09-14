@@ -26,6 +26,8 @@ object Prefs {
     const val KEY_NIGHT_LEVEL = "night_level"      // percent of black, 0 to 80
     const val KEY_IDLE_DIM = "idle_dim_enabled"
     const val KEY_IDLE_MINUTES = "idle_minutes"
+    const val KEY_ICON_PACK = "icon_pack"          // package name, empty means app icons
+    const val KEY_SETUP_SHOWN = "setup_shown"
     const val KEY_CLOCK_FORMAT = "clock_format"   // -1 follow system, 12, or 24
     const val KEY_UNITS = "units"                 // "kmh" or "mph"
 
@@ -215,6 +217,28 @@ object Prefs {
 
     fun setIdleMinutes(context: Context, minutes: Int) {
         prefs(context).edit().putInt(KEY_IDLE_MINUTES, minutes.coerceIn(1, 60)).apply()
+    }
+
+    // ------------------------------------------------------------ icon pack
+
+    fun iconPack(context: Context): String =
+        prefs(context).getString(KEY_ICON_PACK, "") ?: ""
+
+    fun setIconPack(context: Context, packageName: String) {
+        prefs(context).edit().putString(KEY_ICON_PACK, packageName).apply()
+    }
+
+    // ---------------------------------------------------------------- setup
+
+    /**
+     * Tracks whether first-run setup has been OFFERED, not whether it was accepted.
+     * Gating on the dock existing instead would re-offer setup forever to anyone who chose
+     * "Set up manually", since that path deliberately writes nothing.
+     */
+    fun setupShown(context: Context) = prefs(context).getBoolean(KEY_SETUP_SHOWN, false)
+
+    fun setSetupShown(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SETUP_SHOWN, value).apply()
     }
 
     // --------------------------------------------------------------- display

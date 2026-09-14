@@ -213,6 +213,8 @@ class HomeActivity : Activity() {
 
         locationManager = getSystemService(LOCATION_SERVICE) as? LocationManager
         ensureLocationPermission()
+        loadIconPack()
+        maybeOfferSetup()
     }
 
     /**
@@ -335,10 +337,13 @@ class HomeActivity : Activity() {
                     .addCategory(Intent.CATEGORY_LAUNCHER)
                     .setComponent(cn)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                activityInfo.loadIcon(packageManager) to intent
+                val themed = IconPacks.drawableFor(component)
+                (themed ?: activityInfo.loadIcon(packageManager)) to intent
             } else {
                 val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return null
-                packageManager.getApplicationIcon(pkg) to intent
+                // A bare package still needs a component key to look up in the pack.
+                val themed = intent.component?.flattenToShortString()?.let { IconPacks.drawableFor(it) }
+                (themed ?: packageManager.getApplicationIcon(pkg)) to intent
             }
         } catch (e: PackageManager.NameNotFoundException) {
             null
@@ -367,6 +372,47 @@ class HomeActivity : Activity() {
         // Cheap enough to re-evaluate on the minute tick: auto night has to change at sunset
         // even if the car has not moved.
         applyDim()
+    }
+
+    // --------------------------------------------------------- first run
+
+    /**
+     * Offered once, on a unit whose dock has never been configured. Gated on "was it shown"
+     * rather than "does a dock exist", because "Set up manually" deliberately writes nothing
+     * and would otherwise be asked again on every boot.
+     */
+    private fun maybeOfferSetup() {
+        if (Prefs.setupShown(this)) return
+        if (Prefs.prefs(this).contains(Prefs.KEY_DOCK)) {
+            Prefs.setSetupShown(this, true)
+            return
+        }
+        Prefs.setSetupShown(this, true)
+        startActivity(Intent(this, SetupActivity::class.java))
+    }
+
+    // -------------------------------------------------------- icon pack
+
+    /**
+     * Parsing a pack means file I/O against another app's APK, so it cannot run on the main
+     * thread. The dock is rebuilt once it lands; until then icons are the apps' own, which is
+     * a correct screen rather than an empty one.
+     */
+    private fun loadIconPack() {
+        val pack = Prefs.iconPack(this)
+        if (pack.isEmpty()) {
+            IconPacks.clear()
+            return
+        }
+        Thread {
+            IconPacks.load(packageManager, pack)
+            runOnUiThread {
+                if (!isFinishing) {
+                    buildDock()
+                    if (inDriveMode) buildDriveDock()
+                }
+            }
+        }.start()
     }
 
     // -------------------------------------------------------------- trip
@@ -870,6 +916,7 @@ class HomeActivity : Activity() {
         // A package may have been enabled, disabled or installed while we were away,
         // and the wallpaper file may have been replaced.
         loadWallpaper()
+        loadIconPack()
         buildDock()
         findViewById<TextView>(R.id.speed_unit).text = unitLabel()
         driveSpeedUnit?.text = unitLabel()

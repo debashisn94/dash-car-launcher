@@ -34,6 +34,7 @@ class SettingsActivity : Activity() {
     private companion object {
         const val REQ_PICK_APP = 10
         const val REQ_PICK_IMAGE = 11
+        const val REQ_PICK_PACK = 12
     }
 
     private var section = Section.DOCK
@@ -166,6 +167,31 @@ class SettingsActivity : Activity() {
         reset.addView(row)
         content.addView(spacer())
         content.addView(reset)
+
+        val extras = newGroup()
+
+        val packRow = newRow(extras)
+        val pack = Prefs.iconPack(this)
+        packRow.findViewById<TextView>(R.id.row_title).text = "Icon pack"
+        packRow.findViewById<TextView>(R.id.row_sub).text =
+            "Any Nova or ADW compatible pack. Apps the pack has no icon for keep their own."
+        packRow.findViewById<TextView>(R.id.row_value).text =
+            if (pack.isEmpty()) "None" else appLabel(pack)
+        packRow.setOnClickListener {
+            startActivityForResult(Intent(this, IconPackPickerActivity::class.java), REQ_PICK_PACK)
+        }
+        extras.addView(packRow)
+
+        val setupRow = newRow(extras)
+        setupRow.findViewById<TextView>(R.id.row_title).text = "Detect apps again"
+        setupRow.findViewById<TextView>(R.id.row_sub).text =
+            "Matches your unit against known firmware families and proposes a dock"
+        setupRow.setOnClickListener { startActivity(Intent(this, SetupActivity::class.java)) }
+        extras.addView(setupRow)
+
+        content.addView(spacer())
+        content.addView(header("Appearance"))
+        content.addView(extras)
     }
 
     private fun renderDriving() {
@@ -541,6 +567,13 @@ class SettingsActivity : Activity() {
                         editingSlot = -1
                     }
                 }
+                render()
+            }
+            REQ_PICK_PACK -> {
+                val pkg = data?.getStringExtra(IconPackPickerActivity.EXTRA_PACKAGE).orEmpty()
+                Prefs.setIconPack(this, pkg)
+                // The old pack's decoded icons must go, or the next screen mixes two themes.
+                IconPacks.clear()
                 render()
             }
             REQ_PICK_IMAGE -> {

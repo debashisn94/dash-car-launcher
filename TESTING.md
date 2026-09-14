@@ -93,6 +93,33 @@ Settings reset to defaults after the uninstall. That is expected.
       That is the Bargarh case and it is the one most likely to be wrong.
 - [ ] In drive mode the trip card is hidden. Speed is already the big number there.
 
+## 3c. First-run setup and icon packs
+
+**Setup** only offers itself once, on a unit whose dock has never been configured. After the
+uninstall it should appear on first launch.
+
+- [ ] It appears once, on the first launch after installing.
+- [ ] The summary names a family and a count, e.g. "imotor firmware detected, 6 of 8 apps matched".
+      On this unit it should say **imotor**, since that is the family it was built from.
+- [ ] Roles it could not match are listed in amber rather than silently dropped.
+- [ ] **Use this** writes the dock and the home screen reflects it.
+- [ ] **Set up manually** changes nothing.
+- [ ] Reboot: setup does NOT appear again either way. This is the bit most likely to be wrong,
+      because "shown" and "accepted" are deliberately different flags.
+- [ ] Settings -> Dock -> **Detect apps again** re-runs it on demand.
+
+**Icon packs** need a pack installed from the Play Store first. Any Nova or ADW compatible one.
+
+- [ ] Settings -> Dock -> Icon pack lists installed packs, plus None.
+- [ ] With no pack installed, the empty state explains where to get one.
+- [ ] Choosing a pack themes the dock and the drawer.
+- [ ] Apps the pack has no icon for keep their own icon rather than going blank.
+- [ ] Switching packs does not leave a mix of two themes on screen.
+- [ ] Choosing None restores every app's own icon.
+- [ ] The launcher still starts normally with a pack selected. Pack parsing is file I/O against
+      another app's APK on a background thread; if that ever blocked the main thread it would
+      show as a slow or black home screen at boot.
+
 ## 4. Screen off
 
 - [ ] **Long press the clock** blanks the screen to black with a small clock.

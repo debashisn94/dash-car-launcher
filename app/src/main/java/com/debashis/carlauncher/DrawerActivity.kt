@@ -180,7 +180,10 @@ class DrawerActivity : Activity() {
                 if (wanted) {
                     if (view.drawable == null) {
                         val entry = entries.getOrNull(offset + i) ?: continue
-                        view.setImageDrawable(entry.info.loadIcon(packageManager))
+                        val component =
+                            "${entry.info.activityInfo.packageName}/${entry.info.activityInfo.name}"
+                        val themed = IconPacks.drawableFor(component)
+                        view.setImageDrawable(themed ?: entry.info.loadIcon(packageManager))
                     }
                 } else if (view.drawable != null) {
                     view.setImageDrawable(null)

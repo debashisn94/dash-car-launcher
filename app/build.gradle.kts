@@ -23,8 +23,8 @@ android {
         // The head unit is Android 11 / SDK 30 exactly. No compatibility shims needed.
         minSdk = 30
         targetSdk = 30
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
