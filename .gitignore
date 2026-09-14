@@ -12,3 +12,8 @@ captures/
 .idea/
 *.iml
 .DS_Store
+
+# Signing. The keystore and its password stay out of the repo: anyone holding both
+# can ship an update that installs over a user's copy.
+keystore/
+keystore.properties

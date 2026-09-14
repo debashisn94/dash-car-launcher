@@ -3,7 +3,6 @@ package com.debashis.carlauncher
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.ResolveInfo
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -20,20 +19,32 @@ import android.widget.TextView
  *
  * Paged left to right, ten big icons per page, flick to change page.
  * Disabled packages are not listed at all.
+ *
+ * Icons are loaded per page rather than all at once. Pages are real view hierarchies, not a
+ * recycling adapter, so decoding every icon up front meant every installed app's bitmap sat
+ * resident for the life of the process whether you opened the drawer or not.
  */
 class DrawerActivity : Activity() {
 
-    private data class Entry(val label: String, val pkg: String, val icon: Drawable)
+    /** [icon] is deliberately not held here. It is attached and detached as pages come and go. */
+    private data class Entry(val label: String, val pkg: String, val info: ResolveInfo)
 
     private companion object {
         const val COLUMNS = 5
         const val ROWS = 2
         const val PER_PAGE = COLUMNS * ROWS
         const val SIDE_PADDING_DP = 40
+
+        /** Keep the current page plus one either side decoded, so a flick is never blank. */
+        const val NEIGHBOURS = 1
     }
 
     private val entries = mutableListOf<Entry>()
     private val dots = mutableListOf<View>()
+
+    /** One list of icon views per page, index-aligned with [entries] chunks. */
+    private val pageIcons = mutableListOf<List<ImageView>>()
+    private var loadedPage = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +55,6 @@ class DrawerActivity : Activity() {
 
         loadApps()
         findViewById<TextView>(R.id.count).text = "${entries.size} apps"
-
         buildPages()
     }
 
@@ -73,7 +83,7 @@ class DrawerActivity : Activity() {
                 Entry(
                     label = info.loadLabel(packageManager).toString(),
                     pkg = pkg,
-                    icon = info.loadIcon(packageManager)
+                    info = info
                 )
             )
         }
@@ -89,6 +99,8 @@ class DrawerActivity : Activity() {
         pages.removeAllViews()
         dotBar.removeAllViews()
         dots.clear()
+        pageIcons.clear()
+        loadedPage = -1
 
         val pageWidth = resources.displayMetrics.widthPixels
         val sidePadding = dp(SIDE_PADDING_DP)
@@ -103,13 +115,15 @@ class DrawerActivity : Activity() {
                 layoutParams = LinearLayout.LayoutParams(pageWidth, LinearLayout.LayoutParams.MATCH_PARENT)
             }
 
+            val icons = ArrayList<ImageView>(chunk.size)
             for ((index, entry) in chunk.withIndex()) {
                 val view = inflater.inflate(R.layout.app_item_big, grid, false)
-                view.findViewById<ImageView>(R.id.icon).setImageDrawable(entry.icon)
+                // No icon set here on purpose. See loadIconsAround.
                 view.findViewById<TextView>(R.id.label).text = entry.label
                 view.setOnClickListener {
                     packageManager.getLaunchIntentForPackage(entry.pkg)?.let { startActivity(it) }
                 }
+                icons.add(view.findViewById(R.id.icon))
 
                 val params = GridLayout.LayoutParams(
                     GridLayout.spec(index / COLUMNS, 1f),
@@ -120,12 +134,16 @@ class DrawerActivity : Activity() {
                 }
                 grid.addView(view, params)
             }
+            pageIcons.add(icons)
             pages.addView(grid)
         }
 
         pager.pageCount = chunks.size.coerceAtLeast(1)
+        pager.onPageChanged = { page ->
+            setActiveDot(page)
+            loadIconsAround(page)
+        }
 
-        // Page dots. Only worth drawing when there is more than one page.
         if (chunks.size > 1) {
             for (i in chunks.indices) {
                 val dot = View(this)
@@ -138,7 +156,36 @@ class DrawerActivity : Activity() {
                 dots.add(dot)
             }
             dotBar.gravity = Gravity.CENTER
-            pager.onPageChanged = { page -> setActiveDot(page) }
+        }
+
+        loadIconsAround(0)
+    }
+
+    /**
+     * Decode icons for [page] and its neighbours, and drop everything else.
+     *
+     * Dropping matters as much as loading: without it this becomes the same
+     * everything-resident behaviour with extra steps.
+     */
+    private fun loadIconsAround(page: Int) {
+        if (page == loadedPage) return
+        loadedPage = page
+
+        for (p in pageIcons.indices) {
+            val wanted = p in (page - NEIGHBOURS)..(page + NEIGHBOURS)
+            val icons = pageIcons[p]
+            val offset = p * PER_PAGE
+
+            for ((i, view) in icons.withIndex()) {
+                if (wanted) {
+                    if (view.drawable == null) {
+                        val entry = entries.getOrNull(offset + i) ?: continue
+                        view.setImageDrawable(entry.info.loadIcon(packageManager))
+                    }
+                } else if (view.drawable != null) {
+                    view.setImageDrawable(null)
+                }
+            }
         }
     }
 
@@ -159,5 +206,12 @@ class DrawerActivity : Activity() {
             findViewById<TextView>(R.id.count).text = "${entries.size} apps"
             buildPages()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Nothing should hold app icons while the drawer is not on screen.
+        for (icons in pageIcons) for (view in icons) view.setImageDrawable(null)
+        loadedPage = -1
     }
 }
