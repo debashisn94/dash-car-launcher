@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Launcher - Plan and UI Mockup</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  :root{
+    --page-bg:#0A0C0E;
+    --page-surface:#12161A;
+    --page-line:#222A31;
+    --ink:#EEF2F5;
+    --muted:#8C98A2;
+    --accent:#FFB020;
+    --accent-ink:#1A1200;
+    --r:18px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--page-bg);color:var(--ink);
+    font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1400px;margin:0 auto;padding:56px 32px 96px}
+  h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 12px;font-weight:600}
+  h2{font-size:26px;letter-spacing:-.01em;margin:64px 0 16px;font-weight:600}
+  h3{font-size:17px;margin:32px 0 10px;font-weight:600;color:var(--ink)}
+  p{color:#C2CCD4;max-width:80ch;margin:0 0 14px}
+  .lede{font-size:18px;color:var(--muted);max-width:75ch;margin-bottom:8px}
+  a{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.88em;background:#1A2026;border:1px solid var(--page-line);
+       padding:2px 6px;border-radius:6px;color:#DCE4EA}
+  hr{border:0;border-top:1px solid var(--page-line);margin:40px 0}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+  th{text-align:left;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--page-line);
+     font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+  td{padding:11px 12px;border-bottom:1px solid #191F25;color:#C2CCD4;vertical-align:top}
+  td:first-child{color:var(--ink);font-family:var(--mono);font-size:13px;white-space:nowrap}
+  .note{border-left:3px solid var(--accent);background:#17130A;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0}
+  .note strong{color:var(--accent)}
+  .warn{border-left:3px solid #FF5C5C;background:#170C0C;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0}
+  .warn strong{color:#FF8A8A}
+  ul{color:#C2CCD4;max-width:80ch;padding-left:20px}
+  li{margin-bottom:7px}
+  .meta{display:flex;gap:28px;flex-wrap:wrap;font-size:13px;color:var(--muted);
+        border-top:1px solid var(--page-line);border-bottom:1px solid var(--page-line);padding:14px 0;margin:28px 0 0}
+  .meta b{color:var(--ink);font-weight:500}
+
+  /* ---------- device frame ---------- */
+  .stage{margin:28px 0 8px;overflow-x:auto;padding-bottom:8px}
+  .bezel{
+    width:1280px;height:720px;flex:0 0 auto;
+    border-radius:10px;border:10px solid #16191D;
+    box-shadow:0 30px 70px rgba(0,0,0,.6);
+    position:relative;overflow:hidden;background:#000;
+  }
+  .scale-note{font-size:13px;color:var(--muted);font-family:var(--mono)}
+
+  /* ---------- THE LAUNCHER ITSELF (1280x720 @160dpi) ---------- */
+  .lx{
+    width:1280px;height:720px;display:flex;background:#0A0C0E;color:#F2F5F7;
+    font-family:var(--sans);user-select:none;
+  }
+  .lx *{box-sizing:border-box}
+
+  /* left: glance column */
+  .lx-left{
+    width:452px;flex:0 0 452px;padding:44px 40px 36px;
+    display:flex;flex-direction:column;border-right:1px solid #1B2126;
+  }
+  .lx-clock{
+    font-size:118px;line-height:.92;font-weight:300;letter-spacing:-.035em;
+    font-variant-numeric:tabular-nums;color:#FFFFFF;
+  }
+  .lx-clock .ampm{font-size:30px;font-weight:400;letter-spacing:0;color:#8C98A2;margin-left:12px}
+  .lx-date{font-size:21px;color:#8C98A2;margin-top:10px;letter-spacing:.01em}
+
+  .lx-speed{margin-top:auto;display:flex;align-items:flex-end;gap:14px}
+  .lx-speed-num{
+    font-size:132px;line-height:.82;font-weight:500;letter-spacing:-.05em;
+    font-variant-numeric:tabular-nums;color:var(--accent);
+  }
+  .lx-speed-unit{font-size:24px;color:#8C98A2;padding-bottom:16px;letter-spacing:.02em}
+
+  .lx-status{
+    display:flex;align-items:center;gap:26px;margin-top:34px;padding-top:22px;
+    border-top:1px solid #1B2126;font-size:15px;color:#8C98A2;
+  }
+  .lx-status span{display:flex;align-items:center;gap:8px}
+  .lx-status i{font-size:20px}
+  .lx-status .on{color:#F2F5F7}
+  .lx-gear{margin-left:auto;font-size:24px;color:#8C98A2}
+
+  /* right: tile grid */
+  .lx-right{
+    flex:1;padding:36px 40px;display:grid;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:16px;
+  }
+  .tile{
+    background:#14181C;border:1px solid #1E252B;border-radius:var(--r);
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:22px 22px 18px;transition:background .12s linear;
+  }
+  .tile:active{background:#1B2228}
+  .tile i{font-size:42px;color:#F2F5F7;line-height:1}
+  .tile img{width:42px;height:42px;display:block}
+  .tile-label{font-size:19px;font-weight:500;letter-spacing:-.01em}
+  .tile-sub{font-size:13.5px;color:#7C8790;margin-top:3px}
+  .tile.primary{background:var(--accent);border-color:var(--accent)}
+  .tile.primary i,.tile.primary .tile-label{color:var(--accent-ink)}
+  .tile.primary .tile-sub{color:#5A4205}
+  .tile.off{opacity:.42}
+
+  @media (max-width:1420px){ .wrap{padding:40px 20px 80px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Car launcher for the myTVS head unit</h1>
+  <p class="lede">A plan plus a pixel-accurate mockup, built to the real screen. Review this, mark up what you want changed, and only then do we install a toolchain and compile anything.</p>
+
+  <div class="meta">
+    <span><b>Device</b> myTVS / auto_rk_t20</span>
+    <span><b>SoC</b> Rockchip RK3326</span>
+    <span><b>OS</b> Android 11, SDK 30</span>
+    <span><b>Screen</b> 1280 x 720 at density 160</span>
+    <span><b>RAM</b> 1.92 GB</span>
+    <span><b>Car</b> Grand i10 Magna, no CAN, no steering controls</span>
+  </div>
+
+  <h2>The mockup</h2>
+  <p>This is exactly 1280 x 720, the unit's real resolution. Because density is 160 (mdpi), 1 CSS pixel here equals 1 dp on the device, so what you see is what the launcher will measure. If your browser window is narrower than the frame, scroll it sideways rather than zooming out - judging touch-target size needs it at true scale.</p>
+
+  <div class="stage">
+    <div class="bezel">
+      <div class="lx">
+
+        <!-- ================= LEFT: GLANCE COLUMN ================= -->
+        <div class="lx-left">
+          <div class="lx-clock">8:47<span class="ampm">PM</span></div>
+          <div class="lx-date">Sunday, 14 September</div>
+
+          <div class="lx-speed">
+            <div class="lx-speed-num">0</div>
+            <div class="lx-speed-unit">km/h</div>
+          </div>
+
+          <div class="lx-status">
+            <span class="on"><i class="ph-fill ph-bluetooth-connected"></i> iPhone</span>
+            <span><i class="ph ph-gps-fix"></i> 13</span>
+            <i class="ph ph-gear-six lx-gear"></i>
+          </div>
+        </div>
+
+        <!-- ================= RIGHT: TILES ================= -->
+        <div class="lx-right">
+
+          <div class="tile primary">
+            <i class="ph-fill ph-device-mobile"></i>
+            <div>
+              <div class="tile-label">CarPlay</div>
+              <div class="tile-sub">Wireless</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <img src="https://cdn.simpleicons.org/netflix/E50914" alt="Netflix">
+            <div>
+              <div class="tile-label">Netflix</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <img src="https://cdn.simpleicons.org/youtube/FF0000" alt="YouTube">
+            <div>
+              <div class="tile-label">YouTube</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph-fill ph-music-notes"></i>
+            <div>
+              <div class="tile-label">Music</div>
+              <div class="tile-sub">USB and Bluetooth</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph-fill ph-radio"></i>
+            <div>
+              <div class="tile-label">Radio</div>
+              <div class="tile-sub">FM 98.1</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph ph-jack"></i>
+            <div>
+              <div class="tile-label">AUX</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph-fill ph-phone"></i>
+            <div>
+              <div class="tile-label">Phone</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph-fill ph-bluetooth"></i>
+            <div>
+              <div class="tile-label">Bluetooth</div>
+              <div class="tile-sub">Connected</div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <i class="ph ph-squares-four"></i>
+            <div>
+              <div class="tile-label">All apps</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="scale-note">Shown at 100 percent. Tiles are 230 x 196 dp. Android's minimum touch target is 48 dp, so these are roughly four times the minimum in each direction - hittable without looking.</p>
+
+  <h2>Why it looks like this</h2>
+
+  <h3>Amber, not blue or white</h3>
+  <p>The single accent is amber. That is not decoration. Amber is the traditional instrument-panel colour because it degrades night vision far less than blue or white light. You drive this car at night, the screen sits in your peripheral vision, and a bright white or blue tile is the one that ruins your dark adaptation. Everything else on the screen is neutral so the amber means something: it marks the primary action.</p>
+
+  <h3>Nine identical tiles instead of a fancy grid</h3>
+  <p>The tempting design is a bento layout with one big hero tile and smaller supporting ones. I deliberately did not do that. In a moving vehicle, uniform target size and a predictable grid position beat visual variety - you learn "CarPlay is top left" as muscle memory and stop looking at the screen. Hierarchy comes from colour instead of size, which costs nothing ergonomically.</p>
+
+  <h3>The left column is the part you actually read</h3>
+  <p>Clock, date and speed are the only things you glance at while driving, so they get their own column, oversized, with tabular figures so the numbers do not jitter as they change. Everything that requires a deliberate stopped-car interaction lives on the right.</p>
+
+  <h3>No animation, no wallpaper, no blur</h3>
+  <p>The third-party launchers you tried are heavy because of live wallpapers, blur, widgets and animated transitions. On a quad A35 with 1.92 GB this is where the lag comes from. This design has one state change in the entire interface: a tile darkens while your finger is on it. That is the only feedback needed, and it costs nothing.</p>
+
+  <h2>What gets built</h2>
+
+  <h3>Architecture</h3>
+  <table>
+    <tr><th>Decision</th><th>Choice</th><th>Why</th></tr>
+    <tr><td>Language</td><td>Kotlin</td><td>Standard for Android, no runtime cost over Java.</td></tr>
+    <tr><td>UI toolkit</td><td>Classic Views, ConstraintLayout</td><td>Not Jetpack Compose. Compose adds several MB and meaningful memory overhead. On this hardware that is the wrong trade for a screen with nine buttons.</td></tr>
+    <tr><td>Dependencies</td><td>Effectively none</td><td>No AppCompat, no Material Components, no image loader. Target APK under 200 KB.</td></tr>
+    <tr><td>Activity count</td><td>Two</td><td>Home, plus an all-apps drawer.</td></tr>
+    <tr><td>minSdk / targetSdk</td><td>30 / 30</td><td>The device is exactly SDK 30. No compatibility shims needed.</td></tr>
+  </table>
+
+  <h3>Manifest essentials</h3>
+  <p>A launcher is an ordinary app with one special intent filter. The home activity needs <code>android.intent.category.HOME</code> and <code>DEFAULT</code>, plus <code>launchMode="singleTask"</code>, <code>stateNotNeeded="true"</code>, <code>excludeFromRecents="true"</code> and <code>screenOrientation="landscape"</code>. Without <code>stateNotNeeded</code> a launcher can misbehave when the system restarts it under memory pressure, which on 1.92 GB will happen.</p>
+
+  <h3>Permissions</h3>
+  <table>
+    <tr><th>Permission</th><th>Needed for</th><th>Notes</th></tr>
+    <tr><td>ACCESS_FINE_LOCATION</td><td>Speed readout</td><td>Runtime prompt on first launch. GPS already has a good fix on this unit - I saw 13 satellites in the log.</td></tr>
+    <tr><td>QUERY_ALL_PACKAGES</td><td>All-apps drawer, tile icons</td><td>Required from API 30 onward, otherwise the app cannot see other installed apps at all.</td></tr>
+    <tr><td>BLUETOOTH</td><td>Connection status</td><td>Normal permission on SDK 30, no runtime prompt.</td></tr>
+  </table>
+
+  <h3>How speed works</h3>
+  <p>The unit has no CAN bus, so there is no vehicle speed signal to read. Speed comes from GPS instead: <code>LocationManager</code> on <code>GPS_PROVIDER</code>, then <code>Location.getSpeed()</code> which returns metres per second, multiplied by 3.6 for km/h. Two details that matter in practice - GPS speed lags real speed by roughly a second, and it goes stale when you lose sky view. If no fix arrives for 5 seconds the display should drop to a dash rather than freeze on the last number, because a frozen speed is worse than no speed.</p>
+
+  <h3>How the tiles launch</h3>
+  <p>Each tile resolves a package at startup and caches the launch intent. If a package is missing or disabled the tile renders dimmed and does nothing, rather than crashing. That matters because we disabled 16 packages earlier, and you may disable more later.</p>
+  <table>
+    <tr><th>Tile</th><th>Package</th></tr>
+    <tr><td>CarPlay</td><td>com.imotor.phoneconnect</td></tr>
+    <tr><td>Netflix</td><td>com.netflix.mediaclient</td></tr>
+    <tr><td>YouTube</td><td>com.google.android.youtube</td></tr>
+    <tr><td>Music</td><td>com.imotor.music</td></tr>
+    <tr><td>Radio</td><td>com.imotor.fmam</td></tr>
+    <tr><td>AUX</td><td>com.imotor.aux</td></tr>
+    <tr><td>Phone</td><td>com.imotor.dialer</td></tr>
+    <tr><td>Bluetooth</td><td>com.imotor.btmusic</td></tr>
+    <tr><td>All apps</td><td>internal drawer activity</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>Icons in the mockup are stand-ins.</strong> This page pulls Phosphor glyphs and brand marks from a CDN so it renders in a browser. The real launcher will draw each app's own icon straight from the system with <code>PackageManager.getApplicationIcon()</code>, so Netflix looks like Netflix without shipping any artwork. Only the function tiles that have no app behind them need drawn icons.
+  </div>
+
+  <h2>Build and install</h2>
+  <ol style="color:#C2CCD4;max-width:80ch">
+    <li>Install the toolchain: JDK 17 and Android command line tools via Homebrew, then <code>sdkmanager</code> pulls platform 30 and build tools. Roughly 2 to 3 GB. Nothing is written outside the SDK directory and the project folder.</li>
+    <li>Scaffold the project under <code>projects/car-headunit/launcher/</code> with a Gradle wrapper.</li>
+    <li><code>./gradlew assembleDebug</code> produces the APK.</li>
+    <li>Re-enable wireless debugging on the unit, pair, then <code>adb install -r</code>.</li>
+    <li>Press Home, pick the new launcher, choose Always only once you are happy with it.</li>
+  </ol>
+
+  <h2>Risk and the way back</h2>
+
+  <div class="warn">
+    <strong>The one real hazard: a crash loop.</strong> If a launcher is set as the default Home app and it crashes on startup, the screen has nothing to fall back to, and this car has no physical controls beyond the bezel. Three mitigations, all of which we will use. Keep <code>app.carlab.carlauncher</code> and the stock <code>com.android.launcher3</code> installed throughout. Choose Just once rather than Always until it has run for a few days. And keep wireless debugging paired while testing, so <code>adb</code> is a recovery path rather than a trip to the installer.
+  </div>
+
+  <p>Beyond that, the failure modes are mild. A missing app dims a tile instead of crashing. No location permission shows a dash instead of a speed. The launcher stores nothing, so uninstalling it leaves no trace and Android hands Home back to whichever launcher remains.</p>
+
+  <h2>What I need you to define</h2>
+  <p>Mark these up however you like and I will revise the mockup before any code exists.</p>
+  <ul>
+    <li><b>Tile set and order.</b> Nine slots. Are these the right nine, and is the grid position right for the ones you reach for while moving?</li>
+    <li><b>CarPlay or Android Auto as the primary tile.</b> You use both. One tile that opens the mirroring app, or two separate tiles?</li>
+    <li><b>Speed units and size.</b> km/h assumed. It is currently the largest element on screen after the clock, which is a deliberate choice you may disagree with.</li>
+    <li><b>Clock format.</b> 12 hour shown. 24 hour reads faster at a glance and needs no AM and PM.</li>
+    <li><b>What the left column shows when parked.</b> Speed reading zero is dead space. It could show the date larger, the current track, or nothing.</li>
+    <li><b>Wallpaper.</b> Currently flat black, which is fastest and best at night. A photo is possible but costs memory on a 1.92 GB device.</li>
+  </ul>
+
+</div>
+</body>
+</html>

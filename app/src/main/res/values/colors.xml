@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Apple-influenced palette. True black, not dark grey: Apple uses #000 on OLED-era
+         dark UI and it reads far calmer at night than a lifted charcoal. -->
+    <color name="bg">#FF000000</color>
+    <color name="ink">#FFFFFFFF</color>
+    <!-- iOS secondary/tertiary label greys, which are white at reduced opacity. -->
+    <color name="ink_soft">#99EBEBF5</color>
+    <color name="muted">#8AEBEBF5</color>
+    <!-- iOS systemOrange. Kept as the single accent because amber preserves night vision. -->
+    <color name="accent">#FFFF9F0A</color>
+    <color name="accent_ink">#FF1A1200</color>
+    <!-- "Material" fills. Flat translucency, NOT live blur: RenderEffect behind an
+         always-visible dock is the most expensive thing possible on an RK3326. -->
+    <color name="material">#33787880</color>
+    <color name="material_thick">#8C1C1C1E</color>
+    <color name="pressed">#40787880</color>
+    <color name="hairline">#1AFFFFFF</color>
+    <color name="surface">#FF14181C</color>
+    <color name="stroke">#FF1E252B</color>
+    <color name="dock_bg">#8C1C1C1E</color>
+</resources>

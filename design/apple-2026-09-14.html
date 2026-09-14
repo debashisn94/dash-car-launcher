@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Launcher - Apple-influenced direction</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  :root{
+    --page-bg:#0A0C0E; --page-line:#222A31; --ink:#EEF2F5; --muted:#8C98A2;
+    --accent:#FF9F0A;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page-bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1400px;margin:0 auto;padding:56px 32px 96px}
+  h1{font-size:40px;line-height:1.1;letter-spacing:-.022em;margin:0 0 12px;font-weight:600}
+  h2{font-size:27px;letter-spacing:-.015em;margin:72px 0 6px;font-weight:600}
+  h2 .tag{font-size:13px;color:var(--accent);font-family:var(--mono);display:block;margin-bottom:6px;letter-spacing:.06em}
+  h3{font-size:17px;margin:30px 0 10px;font-weight:600}
+  p{color:#C2CCD4;max-width:80ch;margin:0 0 14px}
+  .lede{font-size:18px;color:var(--muted);max-width:78ch}
+  code{font-family:var(--mono);font-size:.88em;background:#1A2026;border:1px solid var(--page-line);padding:2px 6px;border-radius:6px;color:#DCE4EA}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+  th{text-align:left;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--page-line);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+  td{padding:11px 12px;border-bottom:1px solid #191F25;color:#C2CCD4;vertical-align:top}
+  ul{color:#C2CCD4;max-width:80ch;padding-left:20px} li{margin-bottom:7px}
+  .warn{border-left:3px solid #FF453A;background:#180D0D;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0}
+  .warn strong{color:#FF8A85}
+  .note{border-left:3px solid var(--accent);background:#181206;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0}
+  .note strong{color:var(--accent)}
+  .stage{margin:24px 0 10px;overflow-x:auto;padding-bottom:10px}
+  .bezel{width:1280px;height:720px;flex:0 0 auto;border-radius:10px;border:10px solid #16191D;box-shadow:0 30px 70px rgba(0,0,0,.6);overflow:hidden;background:#000}
+  .cap{font-size:13px;color:var(--muted);font-family:var(--mono)}
+
+  /* =================== Apple-influenced launcher =================== */
+  .ap{width:1280px;height:720px;position:relative;overflow:hidden;
+      font-family:var(--sans);user-select:none;background:#000}
+  .ap *{box-sizing:border-box}
+  .ap-wall{position:absolute;inset:0;
+      background:
+        radial-gradient(1100px 600px at 18% 8%, rgba(38,64,96,.55), transparent 62%),
+        radial-gradient(900px 620px at 88% 96%, rgba(120,72,18,.45), transparent 60%),
+        #000;}
+  .ap-hero{position:relative;height:466px;padding:46px 54px;display:flex;align-items:flex-start}
+
+  /* Apple type: tight tracking, thin weights at size, secondary greys */
+  .ap-clock{font-size:132px;line-height:.9;font-weight:250;letter-spacing:-.045em;color:#fff;
+            font-variant-numeric:tabular-nums}
+  .ap-date{font-size:21px;font-weight:400;letter-spacing:-.01em;color:rgba(235,235,245,.6);margin-top:10px}
+  .ap-chips{display:flex;gap:10px;margin-top:28px}
+  .chip{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:500;
+        color:rgba(235,235,245,.75);background:rgba(120,120,128,.24);
+        padding:8px 14px;border-radius:999px;backdrop-filter:blur(30px)}
+  .chip i{font-size:17px}
+
+  .ap-right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:22px}
+  .ap-speed{display:flex;align-items:flex-end;gap:10px}
+  .ap-speed b{font-size:142px;line-height:.8;font-weight:500;letter-spacing:-.05em;
+              color:var(--accent);font-variant-numeric:tabular-nums}
+  .ap-speed span{font-size:20px;font-weight:500;color:rgba(235,235,245,.6);padding-bottom:16px}
+
+  /* material card: fill + blur, no border. Apple uses material, not strokes. */
+  .ap-card{width:396px;background:rgba(120,120,128,.20);backdrop-filter:blur(40px) saturate(150%);
+           border-radius:24px;padding:16px;display:flex;align-items:center;gap:15px}
+  .ap-art{width:66px;height:66px;border-radius:14px;flex:0 0 auto;
+          background:linear-gradient(160deg,#FF375F,#BF5AF2);display:flex;align-items:center;justify-content:center}
+  .ap-art i{font-size:29px;color:#fff}
+  .ap-card .t{font-size:17px;font-weight:600;letter-spacing:-.01em;color:#fff}
+  .ap-card .s{font-size:14px;color:rgba(235,235,245,.6);margin-top:1px}
+  .ap-card .ctrl{margin-left:auto;display:flex;gap:16px;padding-right:6px}
+  .ap-card .ctrl i{font-size:24px;color:rgba(235,235,245,.85)}
+
+  /* dock: vivid squircle tiles, the Apple signature */
+  .ap-dock{position:relative;height:254px;padding:22px 40px 26px;
+           display:grid;grid-template-columns:repeat(8,1fr);gap:16px;
+           background:rgba(28,28,30,.55);backdrop-filter:blur(40px) saturate(160%)}
+  .sq{display:flex;flex-direction:column;align-items:center;gap:11px}
+  .sq .ic{width:112px;height:112px;border-radius:26px;display:flex;align-items:center;justify-content:center;
+          box-shadow:0 8px 22px rgba(0,0,0,.45)}
+  .sq .ic i{font-size:54px;color:#fff}
+  .sq .ic img{width:54px;height:54px}
+  .sq .lb{font-size:15px;font-weight:500;letter-spacing:-.01em;color:rgba(235,235,245,.85)}
+
+  /* light variant */
+  .ap.light{background:#F2F2F7}
+  .ap.light .ap-wall{background:
+        radial-gradient(1000px 560px at 16% 6%, rgba(10,132,255,.14), transparent 60%),
+        radial-gradient(900px 600px at 90% 96%, rgba(255,159,10,.16), transparent 58%),
+        #F2F2F7}
+  .ap.light .ap-clock{color:#1C1C1E;font-weight:300}
+  .ap.light .ap-date{color:rgba(60,60,67,.6)}
+  .ap.light .chip{background:rgba(120,120,128,.14);color:rgba(60,60,67,.75)}
+  .ap.light .ap-speed b{color:#C77700}
+  .ap.light .ap-speed span{color:rgba(60,60,67,.6)}
+  .ap.light .ap-card{background:rgba(255,255,255,.72)}
+  .ap.light .ap-card .t{color:#1C1C1E}
+  .ap.light .ap-card .s{color:rgba(60,60,67,.6)}
+  .ap.light .ap-card .ctrl i{color:rgba(60,60,67,.8)}
+  .ap.light .ap-dock{background:rgba(255,255,255,.62)}
+  .ap.light .sq .lb{color:rgba(60,60,67,.85)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Apple-influenced direction</h1>
+<p class="lede">What Apple's design language actually gives you here: vivid squircle tiles, translucent material instead of borders, a tighter type scale, and true black rather than dark grey. Shown next to the honest limits on how far "Apple design system" can go on an Android head unit.</p>
+
+<div class="warn">
+  <strong>It cannot literally be Apple's design system, and here is why.</strong>
+  <b>SF Pro</b> is licensed for developing on Apple platforms only, so it cannot ship inside an
+  Android APK. <b>SF Symbols</b> carry the same restriction. There is also no official Apple
+  component library for Android or the web. And deliberately imitating <b>CarPlay</b> specifically
+  is both a trademark problem and genuinely confusing, since this screen is not CarPlay and never
+  will be. What follows is Apple's design <em>language</em> applied honestly: the principles, not
+  the assets.
+  <br><br>
+  On your Mac this page renders in real SF, because <code>-apple-system</code> resolves to it
+  locally. On the head unit the same layout would fall back to Roboto. That difference is worth
+  seeing before you choose.
+</div>
+
+<h2><span class="tag">APPLE / DARK</span>The one that suits a car</h2>
+<div class="stage"><div class="bezel"><div class="ap">
+  <div class="ap-wall"></div>
+
+  <div class="ap-hero">
+    <div>
+      <div class="ap-clock">9:59</div>
+      <div class="ap-date">Monday, 14 September</div>
+      <div class="ap-chips">
+        <span class="chip"><i class="ph-fill ph-bluetooth-connected"></i> iPhone</span>
+        <span class="chip"><i class="ph ph-gps-fix"></i> 12 satellites</span>
+      </div>
+    </div>
+
+    <div class="ap-right">
+      <div class="ap-speed"><b>0</b><span>km/h</span></div>
+      <div class="ap-card">
+        <div class="ap-art"><i class="ph-fill ph-music-note"></i></div>
+        <div>
+          <div class="t">Nothing playing</div>
+          <div class="s">Tap Music or connect a phone</div>
+        </div>
+        <div class="ctrl"><i class="ph-fill ph-skip-back"></i><i class="ph-fill ph-play"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ap-dock">
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#30D158,#24A148)"><i class="ph-fill ph-device-mobile"></i></div><div class="lb">CarPlay</div></div>
+    <div class="sq"><div class="ic" style="background:#1C1C1E"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""></div><div class="lb">Netflix</div></div>
+    <div class="sq"><div class="ic" style="background:#fff"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""></div><div class="lb">YouTube</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#FF375F,#BF5AF2)"><i class="ph-fill ph-music-notes"></i></div><div class="lb">Music</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#FF9F0A,#FF6B00)"><i class="ph-fill ph-radio"></i></div><div class="lb">Radio</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#40C8E0,#0A84FF)"><i class="ph ph-jack"></i></div><div class="lb">AUX</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#5E5CE6,#0A84FF)"><i class="ph-fill ph-phone"></i></div><div class="lb">Phone</div></div>
+    <div class="sq"><div class="ic" style="background:rgba(120,120,128,.32)"><i class="ph ph-squares-four"></i></div><div class="lb">All apps</div></div>
+  </div>
+</div></div></div>
+<p class="cap">Tiles are 112 dp squircles. Type is tabular so the clock and speed do not jitter.</p>
+
+<h2><span class="tag">APPLE / LIGHT</span>Same layout, light materials</h2>
+<p>Included for completeness rather than recommendation. It looks correct, and it is the wrong choice for your car: a mostly white 1280 x 720 panel at arm's length on a dark road is a headlight pointed at your own face.</p>
+<div class="stage"><div class="bezel"><div class="ap light">
+  <div class="ap-wall"></div>
+  <div class="ap-hero">
+    <div>
+      <div class="ap-clock">9:59</div>
+      <div class="ap-date">Monday, 14 September</div>
+      <div class="ap-chips">
+        <span class="chip"><i class="ph-fill ph-bluetooth-connected"></i> iPhone</span>
+        <span class="chip"><i class="ph ph-gps-fix"></i> 12 satellites</span>
+      </div>
+    </div>
+    <div class="ap-right">
+      <div class="ap-speed"><b>0</b><span>km/h</span></div>
+      <div class="ap-card">
+        <div class="ap-art"><i class="ph-fill ph-music-note"></i></div>
+        <div>
+          <div class="t">Nothing playing</div>
+          <div class="s">Tap Music or connect a phone</div>
+        </div>
+        <div class="ctrl"><i class="ph-fill ph-skip-back"></i><i class="ph-fill ph-play"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="ap-dock">
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#30D158,#24A148)"><i class="ph-fill ph-device-mobile"></i></div><div class="lb">CarPlay</div></div>
+    <div class="sq"><div class="ic" style="background:#1C1C1E"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""></div><div class="lb">Netflix</div></div>
+    <div class="sq"><div class="ic" style="background:#fff"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""></div><div class="lb">YouTube</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#FF375F,#BF5AF2)"><i class="ph-fill ph-music-notes"></i></div><div class="lb">Music</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#FF9F0A,#FF6B00)"><i class="ph-fill ph-radio"></i></div><div class="lb">Radio</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#40C8E0,#0A84FF)"><i class="ph ph-jack"></i></div><div class="lb">AUX</div></div>
+    <div class="sq"><div class="ic" style="background:linear-gradient(160deg,#5E5CE6,#0A84FF)"><i class="ph-fill ph-phone"></i></div><div class="lb">Phone</div></div>
+    <div class="sq"><div class="ic" style="background:rgba(120,120,128,.32)"><i class="ph ph-squares-four"></i></div><div class="lb">All apps</div></div>
+  </div>
+</div></div></div>
+
+<h2>What actually changed, and what it costs</h2>
+<table>
+  <tr><th>Element</th><th>Dash today</th><th>Apple-influenced</th><th>Cost on this hardware</th></tr>
+  <tr><td>Tiles</td><td>Flat dark rectangles, 18 dp radius, 1 dp stroke</td><td>Vivid squircles, 26 dp radius, coloured gradient, drop shadow</td><td>Cheap. Shape and gradient are drawables.</td></tr>
+  <tr><td>Surfaces</td><td>Solid fills with hairline strokes</td><td>Translucent material, no strokes</td><td><b>Expensive.</b> See the note below.</td></tr>
+  <tr><td>Type</td><td>Roboto, dp sizes</td><td>Tighter tracking, lighter clock weight, tabular figures</td><td>Free. Roboto does tabular and negative tracking fine.</td></tr>
+  <tr><td>Status</td><td>Plain text line</td><td>Pill chips</td><td>Free.</td></tr>
+  <tr><td>Media card</td><td>Text only</td><td>Gradient artwork plus transport controls</td><td>Free, but the controls need the notification listener work already in phase 2.</td></tr>
+  <tr><td>Background</td><td>Your photo behind a scrim</td><td>Colour wash on true black</td><td>Free, but you lose the photo.</td></tr>
+</table>
+
+<div class="note">
+  <strong>The one real problem: blur.</strong> Apple's material look depends on live background
+  blur. On Android that means <code>RenderEffect</code> or a blurred snapshot, and on an RK3326
+  with a quad A35 it is the single most expensive thing you could put on this screen, redrawn
+  every frame behind a dock that is always visible. The honest version for this hardware fakes
+  it: a flat translucent fill at the same opacity, no live blur. It reads almost identically at
+  arm's length in a car and costs nothing. In the mockups above your Mac is doing real
+  <code>backdrop-filter</code>, so they look slightly richer than the device would.
+</div>
+
+<h3>My recommendation</h3>
+<p>Take the squircles, the colour, the chips and the type. Skip the live blur. Keep the photo
+wallpaper, because it is the thing that makes the screen yours and the Apple direction throws it
+away for a colour wash. That hybrid is maybe two hours of work on top of what is already running,
+and it is a straight upgrade rather than a different product.</p>
+
+<h3>If you want the full Apple direction instead</h3>
+<p>It becomes a second style in the v2 design picker you already asked for, sitting alongside
+Instrument, Dock and Rail. That is the right place for it: you switch between them on the unit and
+decide with the car in front of you rather than from a mockup on a laptop.</p>
+
+<h2>Decide</h2>
+<ul>
+  <li><b>Hybrid</b>: squircle tiles, colour, chips, tighter type, keep the wallpaper and the flat fills. My pick.</li>
+  <li><b>Full Apple dark</b>: as shown, faked translucency, colour wash instead of your photo.</li>
+  <li><b>Neither</b>: leave the current design and put this in the v2 picker as a fourth style.</li>
+</ul>
+
+</div>
+</body>
+</html>

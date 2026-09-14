@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Launcher - Dock with Wallpaper</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  :root{
+    --page-bg:#0A0C0E; --page-line:#222A31; --ink:#EEF2F5; --muted:#8C98A2;
+    --accent:#FFB020; --accent-ink:#1A1200; --r:18px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page-bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1400px;margin:0 auto;padding:56px 32px 96px}
+  h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 12px;font-weight:600}
+  h2{font-size:27px;letter-spacing:-.01em;margin:72px 0 6px;font-weight:600}
+  h2 .tag{font-size:13px;color:var(--accent);font-family:var(--mono);display:block;margin-bottom:6px;letter-spacing:.06em}
+  h3{font-size:17px;margin:30px 0 10px;font-weight:600}
+  p{color:#C2CCD4;max-width:80ch;margin:0 0 14px}
+  .lede{font-size:18px;color:var(--muted);max-width:78ch}
+  code{font-family:var(--mono);font-size:.88em;background:#1A2026;border:1px solid var(--page-line);padding:2px 6px;border-radius:6px;color:#DCE4EA}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+  th{text-align:left;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--page-line);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+  td{padding:11px 12px;border-bottom:1px solid #191F25;color:#C2CCD4;vertical-align:top}
+  ul{color:#C2CCD4;max-width:80ch;padding-left:20px} li{margin-bottom:7px}
+  .note{border-left:3px solid var(--accent);background:#17130A;padding:14px 18px;border-radius:0 10px 10px 0;margin:20px 0}
+  .note strong{color:var(--accent)}
+  .stage{margin:24px 0 10px;overflow-x:auto;padding-bottom:10px}
+  .bezel{width:1280px;height:720px;flex:0 0 auto;border-radius:10px;border:10px solid #16191D;box-shadow:0 30px 70px rgba(0,0,0,.6);overflow:hidden;background:#000}
+  .bezel.half{width:640px;height:360px;border-width:6px}
+  .cap{font-size:13px;color:var(--muted);font-family:var(--mono)}
+  .row{display:flex;gap:22px;flex-wrap:wrap;margin:22px 0 6px}
+  .col{flex:0 0 auto}
+  .col h4{margin:0 0 10px;font-size:15px;font-weight:600}
+  .col p{font-size:13.5px;margin:8px 0 0;max-width:40ch;color:var(--muted)}
+  .shrink{width:640px;height:360px;overflow:hidden}
+  .shrink .lx{transform:scale(.5);transform-origin:top left}
+
+  /* ============ launcher ============ */
+  .lx{width:1280px;height:720px;background:#0A0C0E;color:#F2F5F7;font-family:var(--sans);user-select:none;position:relative;overflow:hidden}
+  .lx *{box-sizing:border-box}
+  .wp{position:absolute;inset:0;background-position:center;background-size:cover}
+  .scrim{position:absolute;left:0;right:0;top:0;height:472px}
+  .hero{position:relative;height:472px;padding:48px 56px;display:flex;align-items:flex-start;gap:56px}
+  .dock{position:relative;height:248px;padding:26px 40px;display:grid;grid-template-columns:repeat(8,1fr);gap:14px;
+        background:rgba(9,11,13,.94);border-top:1px solid rgba(255,255,255,.07)}
+  .clock{font-variant-numeric:tabular-nums;font-weight:300;letter-spacing:-.035em;color:#fff;font-size:140px;line-height:.88;
+         text-shadow:0 2px 24px rgba(0,0,0,.55)}
+  .dt{font-size:22px;color:#C6D0D8;margin-top:8px;text-shadow:0 1px 12px rgba(0,0,0,.6)}
+  .stat{display:flex;align-items:center;gap:22px;margin-top:30px;font-size:15px;color:#C6D0D8;text-shadow:0 1px 12px rgba(0,0,0,.6)}
+  .stat span{display:flex;align-items:center;gap:8px}
+  .stat i{font-size:19px}
+  .spd{font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:-.05em;color:var(--accent);font-size:150px;line-height:.8;
+       text-shadow:0 2px 28px rgba(0,0,0,.6)}
+  .np{background:rgba(18,22,26,.86);border:1px solid rgba(255,255,255,.09);border-radius:var(--r);padding:20px 24px;
+      display:flex;align-items:center;gap:18px;min-width:380px}
+  .np-art{width:64px;height:64px;border-radius:12px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .np-art i{font-size:30px;color:#9AA6AE}
+  .dk{background:#14181C;border:1px solid #1E252B;border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  .dk i{font-size:44px} .dk img{width:44px;height:44px}
+  .dk span{font-size:15px;font-weight:500}
+  .dk.primary{background:var(--accent);border-color:var(--accent)} .dk.primary i,.dk.primary span{color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Dock, with wallpaper</h1>
+<p class="lede">Direction B unchanged in layout. The photo sits behind the hero only, with a scrim shaped to protect exactly the areas that carry text. The dock stays solid so the icons never fight the image.</p>
+
+<div class="note">
+  <strong>How you will change it.</strong> The launcher reads the unit's system wallpaper through <code>WallpaperManager</code>. That means you set it using the head unit's own wallpaper settings, the same way you would on a phone, and the launcher just shows whatever is there. No picker for me to build and no new screen for you to learn. If the unit's picker turns out to be useless, the fallback is a file at <code>/sdcard/Launcher/wallpaper.jpg</code> that we read if it exists.
+</div>
+
+<h2><span class="tag">RECOMMENDED</span>Standard scrim</h2>
+<div class="stage"><div class="bezel"><div class="lx">
+  <div class="wp" style="background-image:url('https://picsum.photos/seed/ghat-road-dusk-hills/1280/720')"></div>
+  <div class="scrim" style="background:linear-gradient(180deg,rgba(9,11,13,.90) 0%,rgba(9,11,13,.62) 38%,rgba(9,11,13,.40) 70%,rgba(9,11,13,.58) 100%)"></div>
+  <div class="hero">
+    <div>
+      <div class="clock">8:47</div>
+      <div class="dt">Sunday, 14 September</div>
+      <div class="stat">
+        <span style="color:#F2F5F7"><i class="ph-fill ph-bluetooth-connected"></i> iPhone</span>
+        <span><i class="ph ph-gps-fix"></i> 13 satellites</span>
+      </div>
+    </div>
+    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:26px">
+      <div style="display:flex;align-items:flex-end;gap:12px">
+        <div class="spd">0</div>
+        <div style="font-size:24px;color:#C6D0D8;padding-bottom:18px;text-shadow:0 1px 12px rgba(0,0,0,.6)">km/h</div>
+      </div>
+      <div class="np">
+        <div class="np-art"><i class="ph-fill ph-music-note"></i></div>
+        <div>
+          <div style="font-size:18px;font-weight:500">Nothing playing</div>
+          <div style="font-size:14px;color:#9AA6AE;margin-top:2px">Tap Music or connect a phone</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dock">
+    <div class="dk primary"><i class="ph-fill ph-device-mobile"></i><span>CarPlay</span></div>
+    <div class="dk"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""><span>Netflix</span></div>
+    <div class="dk"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""><span>YouTube</span></div>
+    <div class="dk"><i class="ph-fill ph-music-notes"></i><span>Music</span></div>
+    <div class="dk"><i class="ph-fill ph-radio"></i><span>Radio</span></div>
+    <div class="dk"><i class="ph ph-jack"></i><span>AUX</span></div>
+    <div class="dk"><i class="ph-fill ph-phone"></i><span>Phone</span></div>
+    <div class="dk"><i class="ph ph-squares-four"></i><span>All apps</span></div>
+  </div>
+</div></div></div>
+<p class="cap">Placeholder photo. Scrim is a four-stop vertical gradient, heaviest at the top where the clock and speed sit.</p>
+
+<h3>What the scrim is actually doing</h3>
+<p>A photograph behind white text is the classic way this design fails, because the moment you change the image the text becomes unreadable somewhere. The scrim solves it structurally rather than per-photo. It is heaviest at the very top where the clock and the speed live, lightest across the middle band where nothing is drawn, then lifts again at the bottom so the hero meets the dock cleanly. Whatever photograph you put behind it, the text regions stay dark. The small text shadows are a second layer of insurance for bright images.</p>
+
+<h2><span class="tag">COMPARE</span>Three scrim weights</h2>
+<p>Same photo, three intensities. This is the one dial worth getting right, because it is what decides whether the screen is pleasant or distracting at night.</p>
+
+<div class="row">
+  <div class="col">
+    <h4>Light</h4>
+    <div class="bezel half"><div class="shrink"><div class="lx">
+      <div class="wp" style="background-image:url('https://picsum.photos/seed/ghat-road-dusk-hills/1280/720')"></div>
+      <div class="scrim" style="background:linear-gradient(180deg,rgba(9,11,13,.72) 0%,rgba(9,11,13,.34) 40%,rgba(9,11,13,.16) 72%,rgba(9,11,13,.40) 100%)"></div>
+      <div class="hero">
+        <div><div class="clock">8:47</div><div class="dt">Sunday, 14 September</div></div>
+        <div style="margin-left:auto;display:flex;align-items:flex-end;gap:12px"><div class="spd">0</div><div style="font-size:24px;color:#C6D0D8;padding-bottom:18px">km/h</div></div>
+      </div>
+      <div class="dock">
+        <div class="dk primary"><i class="ph-fill ph-device-mobile"></i><span>CarPlay</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""><span>Netflix</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""><span>YouTube</span></div>
+        <div class="dk"><i class="ph-fill ph-music-notes"></i><span>Music</span></div>
+        <div class="dk"><i class="ph-fill ph-radio"></i><span>Radio</span></div>
+        <div class="dk"><i class="ph ph-jack"></i><span>AUX</span></div>
+        <div class="dk"><i class="ph-fill ph-phone"></i><span>Phone</span></div>
+        <div class="dk"><i class="ph ph-squares-four"></i><span>All apps</span></div>
+      </div>
+    </div></div></div>
+    <p>Photo reads clearly. Risky on bright or busy images, and the brightest thing in a dark car.</p>
+  </div>
+
+  <div class="col">
+    <h4>Standard</h4>
+    <div class="bezel half"><div class="shrink"><div class="lx">
+      <div class="wp" style="background-image:url('https://picsum.photos/seed/ghat-road-dusk-hills/1280/720')"></div>
+      <div class="scrim" style="background:linear-gradient(180deg,rgba(9,11,13,.90) 0%,rgba(9,11,13,.62) 38%,rgba(9,11,13,.40) 70%,rgba(9,11,13,.58) 100%)"></div>
+      <div class="hero">
+        <div><div class="clock">8:47</div><div class="dt">Sunday, 14 September</div></div>
+        <div style="margin-left:auto;display:flex;align-items:flex-end;gap:12px"><div class="spd">0</div><div style="font-size:24px;color:#C6D0D8;padding-bottom:18px">km/h</div></div>
+      </div>
+      <div class="dock">
+        <div class="dk primary"><i class="ph-fill ph-device-mobile"></i><span>CarPlay</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""><span>Netflix</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""><span>YouTube</span></div>
+        <div class="dk"><i class="ph-fill ph-music-notes"></i><span>Music</span></div>
+        <div class="dk"><i class="ph-fill ph-radio"></i><span>Radio</span></div>
+        <div class="dk"><i class="ph ph-jack"></i><span>AUX</span></div>
+        <div class="dk"><i class="ph-fill ph-phone"></i><span>Phone</span></div>
+        <div class="dk"><i class="ph ph-squares-four"></i><span>All apps</span></div>
+      </div>
+    </div></div></div>
+    <p>Photo present but subordinate. Survives any image you throw at it. My recommendation.</p>
+  </div>
+
+  <div class="col">
+    <h4>Night</h4>
+    <div class="bezel half"><div class="shrink"><div class="lx">
+      <div class="wp" style="background-image:url('https://picsum.photos/seed/ghat-road-dusk-hills/1280/720')"></div>
+      <div class="scrim" style="background:linear-gradient(180deg,rgba(9,11,13,.96) 0%,rgba(9,11,13,.86) 40%,rgba(9,11,13,.78) 72%,rgba(9,11,13,.90) 100%)"></div>
+      <div class="hero">
+        <div><div class="clock">8:47</div><div class="dt">Sunday, 14 September</div></div>
+        <div style="margin-left:auto;display:flex;align-items:flex-end;gap:12px"><div class="spd">0</div><div style="font-size:24px;color:#C6D0D8;padding-bottom:18px">km/h</div></div>
+      </div>
+      <div class="dock">
+        <div class="dk primary"><i class="ph-fill ph-device-mobile"></i><span>CarPlay</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/netflix/E50914" alt=""><span>Netflix</span></div>
+        <div class="dk"><img src="https://cdn.simpleicons.org/youtube/FF0000" alt=""><span>YouTube</span></div>
+        <div class="dk"><i class="ph-fill ph-music-notes"></i><span>Music</span></div>
+        <div class="dk"><i class="ph-fill ph-radio"></i><span>Radio</span></div>
+        <div class="dk"><i class="ph ph-jack"></i><span>AUX</span></div>
+        <div class="dk"><i class="ph-fill ph-phone"></i><span>Phone</span></div>
+        <div class="dk"><i class="ph ph-squares-four"></i><span>All apps</span></div>
+      </div>
+    </div></div></div>
+    <p>Photo becomes texture rather than subject. Least distracting while driving after dark.</p>
+  </div>
+</div>
+
+<h2><span class="tag">WORTH BUILDING</span>Automatic night dimming</h2>
+<p>While digging into the handbrake problem I found a second vendor signal sitting next to it in the framework: <code>vehicle_signal_ill_detect</code>. That is illumination detect, which is the head unit reading your headlight switch. It is the same mechanism the unit already uses to dim its own screen at night.</p>
+<p>If that signal is wired on your car, and it is far more commonly connected than the parking wire because it drives the existing auto-dim, the launcher can read it and move the scrim from Standard to Night the moment you switch your headlights on. Wallpaper visible during the day, near-black at night, no setting for you to remember. If the signal turns out to be unwired like the handbrake one, we fall back to sunrise and sunset times calculated from the GPS position we already have.</p>
+
+<h2>Wallpaper, practically</h2>
+<table>
+  <tr><th>Concern</th><th>Answer</th></tr>
+  <tr><td>Memory</td><td>1280 x 720 decoded as <code>RGB_565</code> is about 1.8 MB. Decoded once at startup, held for the life of the launcher. On 1.92 GB this is not worth thinking about.</td></tr>
+  <tr><td>Source image size</td><td>Anything larger than 1280 x 720 gets downsampled at decode with <code>inSampleSize</code>, so a 12 megapixel phone photo costs the same as a correctly sized one.</td></tr>
+  <tr><td>Aspect ratio</td><td>Centre-cropped. A portrait photo will lose its top and bottom. Landscape images work best, unsurprisingly.</td></tr>
+  <tr><td>Changing it</td><td>The unit's own wallpaper setting. The launcher re-reads on resume, so it updates when you come back to the home screen.</td></tr>
+  <tr><td>No wallpaper set</td><td>Falls back to flat black, which is the Direction B you already approved. Nothing breaks.</td></tr>
+</table>
+
+<h2>Still open</h2>
+<ul>
+  <li><b>Scrim weight.</b> Light, Standard, or Night as the default. I recommend Standard, with automatic switching to Night if the illumination signal is wired.</li>
+  <li><b>Your photo.</b> Send me the image you want and I will put it in the mockup so you can judge it properly rather than judging a stock placeholder.</li>
+  <li><b>Clock format.</b> Still showing 12 hour. 24 hour is faster to read and drops the AM and PM entirely.</li>
+  <li><b>Status bar.</b> Not shown in any of these mockups, which implicitly assumes we hide it. Confirm that is what you want.</li>
+  <li><b>The eighth dock slot.</b> Currently All apps. Bluetooth lost its tile when we moved from the nine tile grid to the eight slot dock. If you want it back, something has to go.</li>
+</ul>
+
+</div>
+</body>
+</html>

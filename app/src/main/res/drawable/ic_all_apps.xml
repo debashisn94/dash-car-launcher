@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Four squares. Plain geometry, not an illustration: the only icon we draw ourselves,
+     because "All apps" is not backed by a real package with its own icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFF2F5F7" android:pathData="M3,3h8v8h-8z" />
+    <path android:fillColor="#FFF2F5F7" android:pathData="M13,3h8v8h-8z" />
+    <path android:fillColor="#FFF2F5F7" android:pathData="M3,13h8v8h-8z" />
+    <path android:fillColor="#FFF2F5F7" android:pathData="M13,13h8v8h-8z" />
+</vector>

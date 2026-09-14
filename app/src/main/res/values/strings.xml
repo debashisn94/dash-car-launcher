@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dash</string>
+    <string name="all_apps">All apps</string>
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="nothing_playing_sub">Tap Music or connect a phone</string>
+    <string name="bt_connected_sub">Ready to play</string>
+    <string name="kmh">km/h</string>
+    <string name="no_speed">--</string>
+</resources>

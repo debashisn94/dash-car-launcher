@@ -1,0 +1,550 @@
+package com.debashis.carlauncher
+
+import android.Manifest
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Drawable
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
+import android.provider.Settings
+import android.location.GnssStatus
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.io.File
+import kotlin.math.roundToInt
+
+/**
+ * Dash - home screen for the myTVS RK3326 head unit.
+ *
+ * Deliberately built on framework APIs only. No AppCompat, no Material, no Compose.
+ * The device has 1.9 GB of RAM and a quad A35; every dependency would be paid for
+ * at every boot, for a screen with eight buttons on it.
+ */
+class HomeActivity : Activity() {
+
+    /**
+     * One dock slot. [pkg] null means the slot is handled internally.
+     *
+     * [cls] targets one specific activity. Needed because com.imotor.phoneconnect exposes
+     * four launcher activities (.Carplay, .AndroidAuto, .AndroidLink, .Airplay) and the
+     * package default lands on the wrong one. Targeting the component also picks up that
+     * activity's own icon instead of the app's generic one.
+     */
+    private data class Slot(
+        val label: String,
+        val pkg: String?,
+        val cls: String? = null,
+        val iconRes: Int = 0,
+        val primary: Boolean = false
+    )
+
+    private companion object {
+        /**
+         * v2 turns this into a user-editable list in a settings screen.
+         * Keeping it as data rather than eight copies of XML is what makes that cheap.
+         */
+        val DOCK = listOf(
+            Slot("CarPlay", "com.imotor.phoneconnect", "com.imotor.phoneconnect.Carplay", primary = true),
+            Slot("Netflix", "com.netflix.mediaclient"),
+            Slot("YouTube", "com.google.android.youtube"),
+            Slot("Music", "com.imotor.music"),
+            Slot("Radio", "com.imotor.fmam"),
+            // AUX replaced 2026-09-14: never used in this car. Android Auto is the second
+            // half of how Debashis actually navigates, alongside CarPlay.
+            Slot("Android Auto", "com.imotor.phoneconnect", "com.imotor.phoneconnect.AndroidAuto"),
+            // com.imotor.dialer has NO launchable activity on this unit. The phone UI
+            // (contacts, call log, dial pad over Bluetooth) is com.imotor.contacts.
+            Slot("Phone", "com.imotor.contacts", "com.imotor.contacts.ui.MainActivity"),
+            Slot("All apps", null, iconRes = R.drawable.ic_all_apps)
+        )
+
+        /** Other phoneconnect entry points, if a slot is reassigned in v2. */
+        const val AIRPLAY = "com.imotor.phoneconnect.Airplay"
+        const val ANDROID_LINK = "com.imotor.phoneconnect.AndroidLink"
+
+        const val REQ_LOCATION = 1
+
+        /**
+         * A frozen speed is worse than no speed: it reads as real while being wrong.
+         * If no GPS fix arrives for this long, fall back to a dash.
+         */
+        const val SPEED_STALE_MS = 5000L
+
+        /** Below this, a GPS reading is standstill jitter rather than movement. */
+        const val SPEED_DEADBAND_KMH = 3f
+        const val TICK_MS = 1000L
+    }
+
+    private lateinit var clockView: TextView
+    private lateinit var dateView: TextView
+    private lateinit var speedView: TextView
+    private lateinit var btView: TextView
+    private lateinit var gpsView: TextView
+    private lateinit var npTitle: TextView
+    private lateinit var npSub: TextView
+    private lateinit var npArt: ImageView
+    private lateinit var npPlay: ImageView
+    private lateinit var npNext: ImageView
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastFixAt = 0L
+    private var satellites = 0
+    private var locationManager: LocationManager? = null
+
+    private val timeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = updateClock()
+    }
+
+    private val btReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = updateBluetooth()
+    }
+
+    private val locationListener = LocationListener { loc: Location ->
+        lastFixAt = SystemClock.elapsedRealtime()
+        // getSpeed() is metres per second. Never negative, but clamp anyway.
+        val kmh = (loc.speed * 3.6f).coerceAtLeast(0f)
+        // GPS jitters by a couple of km/h at a standstill, so a parked car reads 1 or 2.
+        // Anything below the deadband is noise, not motion.
+        speedView.text = if (kmh < SPEED_DEADBAND_KMH) "0" else kmh.roundToInt().toString()
+    }
+
+    private val gnssCallback = object : GnssStatus.Callback() {
+        override fun onSatelliteStatusChanged(status: GnssStatus) {
+            var used = 0
+            for (i in 0 until status.satelliteCount) if (status.usedInFix(i)) used++
+            satellites = used
+            updateGpsLabel()
+        }
+    }
+
+    /** Ticks once a second purely to expire a stale speed reading. */
+    private val staleCheck = object : Runnable {
+        override fun run() {
+            if (lastFixAt != 0L && SystemClock.elapsedRealtime() - lastFixAt > SPEED_STALE_MS) {
+                speedView.text = getString(R.string.no_speed)
+            }
+            updateGpsLabel()
+            handler.postDelayed(this, TICK_MS)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(layoutRes())
+        hideSystemBars()
+
+        clockView = findViewById(R.id.clock)
+        dateView = findViewById(R.id.date)
+        speedView = findViewById(R.id.speed)
+        btView = findViewById(R.id.bt_status)
+        gpsView = findViewById(R.id.gps_status)
+        npTitle = findViewById(R.id.np_title)
+        npSub = findViewById(R.id.np_sub)
+        npArt = findViewById(R.id.np_art)
+        npPlay = findViewById(R.id.np_play)
+        npNext = findViewById(R.id.np_next)
+
+        npPlay.setOnClickListener {
+            val c = controller ?: return@setOnClickListener
+            if (c.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                c.transportControls.pause()
+            } else {
+                c.transportControls.play()
+            }
+        }
+        npNext.setOnClickListener { controller?.transportControls?.skipToNext() }
+
+        findViewById<View>(R.id.now_playing).setOnClickListener {
+            val pkg = controller?.packageName ?: "com.imotor.music"
+            packageManager.getLaunchIntentForPackage(pkg)?.let { startActivity(it) }
+        }
+
+        loadWallpaper()
+        buildDock()
+        updateClock()
+        speedView.text = getString(R.string.no_speed)
+
+        locationManager = getSystemService(LOCATION_SERVICE) as? LocationManager
+        ensureLocationPermission()
+    }
+
+    /**
+     * v2: read the chosen style from SharedPreferences and return the matching layout.
+     * Kept as a single call site so adding activity_home_grid and activity_home_rail
+     * is a two line change rather than a refactor.
+     */
+    private fun layoutRes(): Int = R.layout.activity_home
+
+    // -------------------------------------------------------- wallpaper
+
+    /**
+     * Wallpaper file lives in the app's own external files dir:
+     *   /sdcard/Android/data/com.debashis.carlauncher/files/wallpaper.jpg
+     * That location needs NO storage permission, which is why it beats /sdcard/Pictures.
+     * Replace the file and the next return to the home screen picks it up.
+     */
+    private fun loadWallpaper() {
+        val view = findViewById<ImageView>(R.id.wallpaper)
+        val file = File(getExternalFilesDir(null), "wallpaper.jpg")
+        if (!file.exists()) {
+            view.setImageDrawable(null)   // fall through to the system wallpaper
+            return
+        }
+
+        // Measure first so a 12 megapixel phone photo costs the same as a correctly
+        // sized one: decode straight down to roughly screen resolution.
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+
+        val target = resources.displayMetrics.widthPixels
+        var sample = 1
+        while (bounds.outWidth > 0 && bounds.outWidth / (sample * 2) >= target) sample *= 2
+
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            // Halves the memory and is invisible on a dark photo behind a scrim.
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        BitmapFactory.decodeFile(file.absolutePath, opts)?.let { view.setImageBitmap(it) }
+    }
+
+    private fun hideSystemBars() {
+        window.setDecorFitsSystemWindows(false)
+        window.insetsController?.apply {
+            hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            // Swipe from an edge still brings them back temporarily, so the vendor
+            // back and recents buttons are never permanently out of reach.
+            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    // ---------------------------------------------------------------- dock
+
+    private fun buildDock() {
+        val dock = findViewById<LinearLayout>(R.id.dock)
+        dock.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+
+        for (slot in DOCK) {
+            val view = inflater.inflate(R.layout.dock_item, dock, false)
+            val icon = view.findViewById<ImageView>(R.id.icon)
+            val label = view.findViewById<TextView>(R.id.label)
+            label.text = slot.label
+
+            if (slot.pkg == null) {
+                icon.setImageResource(slot.iconRes)
+                icon.setBackgroundResource(R.drawable.squircle_neutral)
+                val pad = dp(28)
+                icon.setPadding(pad, pad, pad, pad)
+                view.setOnClickListener {
+                    startActivity(Intent(this, DrawerActivity::class.java))
+                }
+            } else {
+                val resolved = resolve(slot)
+                if (resolved == null) {
+                    // Package missing, disabled, or exposes no launchable activity.
+                    // Dim it and make it inert rather than crashing or lying about what
+                    // is there. 16 packages were disabled on this unit already.
+                    view.alpha = 0.35f
+                    view.isClickable = false
+                } else {
+                    icon.setImageDrawable(resolved.first)
+                    view.setOnClickListener { startActivity(resolved.second) }
+                }
+            }
+            dock.addView(view)
+        }
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    /** Returns the icon and the intent to launch, or null if the slot is not usable. */
+    private fun resolve(slot: Slot): Pair<Drawable, Intent>? {
+        val pkg = slot.pkg ?: return null
+        return try {
+            if (slot.cls != null) {
+                val component = ComponentName(pkg, slot.cls)
+                // Throws NameNotFoundException if the activity is gone or disabled.
+                val activityInfo = packageManager.getActivityInfo(component, 0)
+                if (!activityInfo.enabled) return null
+                val intent = Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setComponent(component)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activityInfo.loadIcon(packageManager) to intent
+            } else {
+                val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return null
+                packageManager.getApplicationIcon(pkg) to intent
+            }
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    // ------------------------------------------------------------ clock
+
+    private fun updateClock() {
+        // Follows the unit's own 12 vs 24 hour setting rather than hardcoding either.
+        val pattern = if (android.text.format.DateFormat.is24HourFormat(this)) "H:mm" else "h:mm"
+        val now = Date()
+        clockView.text = SimpleDateFormat(pattern, Locale.getDefault()).format(now)
+        dateView.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now)
+    }
+
+    // ------------------------------------------------------------ media
+
+    private var sessionManager: MediaSessionManager? = null
+    private var controller: MediaController? = null
+
+    private val sessionsListener =
+        MediaSessionManager.OnActiveSessionsChangedListener { list -> bindController(list) }
+
+    private val controllerCallback = object : MediaController.Callback() {
+        override fun onMetadataChanged(metadata: MediaMetadata?) = renderMedia()
+        override fun onPlaybackStateChanged(state: PlaybackState?) = renderMedia()
+        override fun onSessionDestroyed() {
+            controller = null
+            renderMedia()
+        }
+    }
+
+    /**
+     * Android will not hand out media sessions without notification access. Granted either
+     * in Settings, or over adb with:
+     *   cmd notification allow_listener com.debashis.carlauncher/.DashNotificationListener
+     */
+    private fun notificationAccessGranted(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat != null && flat.contains(packageName)
+    }
+
+    private fun setupMedia() {
+        if (!notificationAccessGranted()) return
+        val component = ComponentName(this, DashNotificationListener::class.java)
+        sessionManager = getSystemService(MediaSessionManager::class.java)
+        try {
+            sessionManager?.addOnActiveSessionsChangedListener(sessionsListener, component)
+            bindController(sessionManager?.getActiveSessions(component))
+        } catch (e: SecurityException) {
+            // Access revoked between the check and the call. Bluetooth fallback still works.
+        }
+    }
+
+    private fun teardownMedia() {
+        controller?.unregisterCallback(controllerCallback)
+        controller = null
+        try {
+            sessionManager?.removeOnActiveSessionsChangedListener(sessionsListener)
+        } catch (e: Exception) {
+            // Nothing to unwind.
+        }
+    }
+
+    /** Prefer whatever is actually playing over whatever merely exists. */
+    private fun bindController(list: List<MediaController>?) {
+        controller?.unregisterCallback(controllerCallback)
+        controller = list?.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            ?: list?.firstOrNull()
+        controller?.registerCallback(controllerCallback)
+        renderMedia()
+    }
+
+    private fun renderMedia() {
+        val c = controller
+        val metadata = c?.metadata
+        val state = c?.playbackState?.state
+        val active = state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING
+        val title = usable(metadata?.getString(MediaMetadata.METADATA_KEY_TITLE))
+
+        // A session is worth showing when it is ACTIVELY PLAYING, even with no metadata.
+        // FM radio (com.imotor.fmam) publishes a live session with `metadata: null` and
+        // state=3, so requiring a title made a playing radio read as "Nothing playing".
+        if (c == null || (!active && title == null)) {
+            npPlay.visibility = View.GONE
+            npNext.visibility = View.GONE
+            npArt.setImageDrawable(null)
+            updateBluetooth()
+            return
+        }
+
+        // No title means a source with nothing to name, like a radio band. The app is the
+        // most useful label we have.
+        npTitle.text = title ?: appLabel(c.packageName)
+
+        npSub.text = usable(metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST))
+            ?: usable(metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST))
+            ?: usable(metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM))
+            ?: if (title != null) appLabel(c.packageName) else "Playing"
+
+        val art = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+        // Null leaves the gradient background showing, which is a better empty state
+        // than a grey box.
+        npArt.setImageBitmap(art)
+
+        npPlay.setImageResource(
+            if (state == PlaybackState.STATE_PLAYING) R.drawable.ic_pause else R.drawable.ic_play
+        )
+        npPlay.visibility = View.VISIBLE
+
+        // Only offer skip when the session says it supports it. Radio uses it to change
+        // station; a source that cannot skip should not show a dead button.
+        val canSkip = (c.playbackState?.actions ?: 0L) and PlaybackState.ACTION_SKIP_TO_NEXT != 0L
+        npNext.visibility = if (canSkip) View.VISIBLE else View.GONE
+    }
+
+    private fun usable(value: String?): String? {
+        val trimmed = value?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        return if (trimmed.equals("unknown", true) || trimmed == "<unknown>") null else trimmed
+    }
+
+    private fun appLabel(pkg: String): String = try {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    } catch (e: PackageManager.NameNotFoundException) {
+        pkg
+    }
+
+    // -------------------------------------------------------- bluetooth
+
+    private fun updateBluetooth() {
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        val connected = adapter != null &&
+                adapter.isEnabled &&
+                adapter.getProfileConnectionState(BluetoothProfile.A2DP) == BluetoothProfile.STATE_CONNECTED
+
+        btView.text = when {
+            adapter == null || !adapter.isEnabled -> "Bluetooth off"
+            connected -> "Bluetooth connected"
+            else -> "Bluetooth on"
+        }
+
+        // Only owns the card when no media session is active.
+        if (controller != null) return
+        if (connected) {
+            npTitle.text = "Bluetooth audio"
+            npSub.text = getString(R.string.bt_connected_sub)
+        } else {
+            npTitle.text = getString(R.string.nothing_playing)
+            npSub.text = getString(R.string.nothing_playing_sub)
+        }
+    }
+
+    // -------------------------------------------------------------- gps
+
+    private fun updateGpsLabel() {
+        gpsView.text = when {
+            !hasLocationPermission() -> "Location off"
+            lastFixAt == 0L -> "Waiting for GPS"
+            satellites > 0 -> "$satellites satellites"
+            else -> "GPS"
+        }
+    }
+
+    private fun hasLocationPermission() =
+        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    private fun ensureLocationPermission() {
+        if (!hasLocationPermission()) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQ_LOCATION)
+        }
+    }
+
+    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(code, perms, results)
+        if (code == REQ_LOCATION) startLocation()
+    }
+
+    private fun startLocation() {
+        if (!hasLocationPermission()) return
+        val lm = locationManager ?: return
+        try {
+            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, locationListener)
+            lm.registerGnssStatusCallback(mainExecutor, gnssCallback)
+        } catch (e: SecurityException) {
+            // Permission revoked between the check and the call. Leave the dash showing.
+        } catch (e: IllegalArgumentException) {
+            // No GPS provider on this build. Same outcome.
+        }
+    }
+
+    private fun stopLocation() {
+        val lm = locationManager ?: return
+        try {
+            lm.removeUpdates(locationListener)
+            lm.unregisterGnssStatusCallback(gnssCallback)
+        } catch (e: SecurityException) {
+            // Nothing to unwind.
+        }
+    }
+
+    // ------------------------------------------------------- lifecycle
+
+    override fun onStart() {
+        super.onStart()
+        registerReceiver(timeReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_TICK)      // fires once a minute, no polling
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        })
+        registerReceiver(btReceiver, IntentFilter().apply {
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
+        })
+        updateClock()
+        updateBluetooth()
+        startLocation()
+        setupMedia()
+        handler.post(staleCheck)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(timeReceiver)
+        unregisterReceiver(btReceiver)
+        stopLocation()
+        teardownMedia()
+        handler.removeCallbacks(staleCheck)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // A package may have been enabled, disabled or installed while we were away,
+        // and the wallpaper file may have been replaced.
+        loadWallpaper()
+        buildDock()
+        updateBluetooth()
+    }
+
+    /** Home is the bottom of the stack. Back must not leave the user on a blank screen. */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Intentionally empty.
+    }
+}

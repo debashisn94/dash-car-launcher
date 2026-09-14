@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shaped to the LAYOUT, not to any particular photo.
+  Heaviest at the top where the clock and speed sit, lightest across the middle
+  band where nothing is drawn, lifting again where the hero meets the dock.
+  This is what stops a changed wallpaper from making the clock unreadable.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#E60A0C0E"
+                android:centerColor="#9E0A0C0E"
+                android:centerY="0.40"
+                android:endColor="#660A0C0E"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="#940A0C0E"
+                android:centerColor="#000A0C0E"
+                android:centerY="0.32"
+                android:endColor="#000A0C0E"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      windowShowWallpaper is deliberately OFF.
+
+      It was on originally so the system could composite the wallpaper behind us for free.
+      The cost only showed up on the device: during the moment before our content draws,
+      the SYSTEM wallpaper is what shows through a transparent window, which is the old
+      vendor wallpaper flashing on every launch and every return to home.
+
+      We draw our own wallpaper from a file now, so the system layer buys us nothing.
+      An opaque windowBackground means the very first frame is already our colour wash.
+    -->
+    <style name="DashTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowBackground">@drawable/bg_wash</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="DashTheme.Opaque">
+        <item name="android:windowBackground">@color/bg</item>
+    </style>
+</resources>
