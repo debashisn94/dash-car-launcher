@@ -1,6 +1,7 @@
 package com.debashis.carlauncher
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
@@ -14,6 +15,7 @@ import android.view.WindowInsetsController
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import java.io.File
 
 /**
@@ -295,12 +297,21 @@ class SettingsActivity : Activity() {
         pick.findViewById<TextView>(R.id.row_sub).text =
             if (file.exists()) "Currently set, ${file.length() / 1024} KB" else "None set, showing the colour wash"
         pick.setOnClickListener {
-            startActivityForResult(
-                Intent(Intent.ACTION_OPEN_DOCUMENT)
-                    .addCategory(Intent.CATEGORY_OPENABLE)
-                    .setType("image/*"),
-                REQ_PICK_IMAGE
-            )
+            // GET_CONTENT, not OPEN_DOCUMENT. This unit's firmware ships no DocumentsUI at
+            // all, so OPEN_DOCUMENT resolves to nothing and throws, which on a launcher looks
+            // like the screen simply bouncing back to home. GET_CONTENT is handled here by
+            // the gallery and the vendor file manager, and it costs nothing, because the
+            // result is copied to our own files dir immediately rather than held as a Uri.
+            val intent = Intent(Intent.ACTION_GET_CONTENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("image/*")
+            try {
+                startActivityForResult(intent, REQ_PICK_IMAGE)
+            } catch (e: ActivityNotFoundException) {
+                // A launcher must never die because another app is absent.
+                Toast.makeText(this, "No gallery or file manager on this unit", Toast.LENGTH_LONG)
+                    .show()
+            }
         }
         group.addView(pick)
 
