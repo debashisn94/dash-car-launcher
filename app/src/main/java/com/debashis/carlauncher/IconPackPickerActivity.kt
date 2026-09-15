@@ -49,8 +49,11 @@ class IconPackPickerActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        hideSystemBars()
+        // setContentView first: hideSystemBars reaches through to the DecorView, which does
+        // not exist until a content view is set, and the getter throws rather than returning
+        // null. The XML-layout screens already order it this way.
         setContentView(buildRoot())
+        hideSystemBars()
     }
 
     // Copied verbatim from SettingsActivity so every internal screen hides chrome the same way.

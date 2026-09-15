@@ -51,7 +51,6 @@ class SetupActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        hideSystemBars()
 
         // Detection never throws, but this screen exists precisely for unfamiliar hardware,
         // so guard it anyway rather than trust that promise blindly on first run.
@@ -61,7 +60,11 @@ class SetupActivity : Activity() {
             VendorProfiles.Result("Generic Android", 0, 0, emptyMap())
         }
 
+        // setContentView before hideSystemBars: the latter reaches through to the DecorView,
+        // which does not exist until a content view is set, and the getter throws rather than
+        // returning null. This crashed every launch of this screen in v1.2.
         setContentView(buildRoot())
+        hideSystemBars()
     }
 
     private fun hideSystemBars() {
