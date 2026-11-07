@@ -15,7 +15,6 @@ import android.view.Window
 object SystemBars {
 
     fun hide(window: Window) {
-        window.setDecorFitsSystemWindows(false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false)
             window.insetsController?.apply {
