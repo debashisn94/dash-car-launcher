@@ -29,8 +29,6 @@ import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.ViewStub
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -258,13 +256,7 @@ class HomeActivity : Activity() {
     }
 
     private fun hideSystemBars() {
-        window.setDecorFitsSystemWindows(false)
-        window.insetsController?.apply {
-            hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-            // Swipe from an edge still brings them back temporarily, so the vendor
-            // back and recents buttons are never permanently out of reach.
-            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        SystemBars.hide(window)
     }
 
     // ---------------------------------------------------------------- dock

@@ -4,8 +4,6 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -68,11 +66,7 @@ class SetupActivity : Activity() {
     }
 
     private fun hideSystemBars() {
-        window.setDecorFitsSystemWindows(false)
-        window.insetsController?.apply {
-            hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        SystemBars.hide(window)
     }
 
     // ---------------------------------------------------------------- layout

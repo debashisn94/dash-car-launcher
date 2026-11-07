@@ -9,8 +9,6 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -56,13 +54,8 @@ class IconPackPickerActivity : Activity() {
         hideSystemBars()
     }
 
-    // Copied verbatim from SettingsActivity so every internal screen hides chrome the same way.
     private fun hideSystemBars() {
-        window.setDecorFitsSystemWindows(false)
-        window.insetsController?.apply {
-            hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        SystemBars.hide(window)
     }
 
     // ---------------------------------------------------------------- layout, built in code
